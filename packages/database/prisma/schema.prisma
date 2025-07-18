@@ -1,0 +1,581 @@
+// packages/database/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  chips     Int      @default(1000)
+  avatar    String?
+  
+  // Profile
+  firstName String?
+  lastName  String?
+  country   String?
+  
+  // Game Stats
+  gamesPlayed    Int @default(0)
+  gamesWon       Int @default(0)
+  totalWinnings  Int @default(0)
+  totalLosses    Int @default(0)
+  
+  // Experience & Ranking
+  experience     Int @default(0)
+  level         Int @default(1)
+  rank          String @default("Beginner")
+  
+  // Settings
+  soundEnabled      Boolean @default(true)
+  animationsEnabled Boolean @default(true)
+  autoMuckEnabled   Boolean @default(false)
+  aiAssistEnabled   Boolean @default(false)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  // Relations
+  gameParticipations GameParticipation[]
+  sessions          UserSession[]
+  aiAnalyses        AIAnalysis[]
+  friendships       Friendship[] @relation("UserFriendships")
+  friendOf          Friendship[] @relation("FriendOfUser")
+  
+  @@map("users")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionId    String   @unique
+  deviceInfo   Json?
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  status    FriendshipStatus @default(PENDING)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  acceptedAt DateTime?
+  
+  // Relations
+  user      User     @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendOfUser", fields: [friendId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+model Table {
+  id          String      @id // Snowflake ID
+  serverId    String
+  name        String?
+  gameType    GameType    @default(TEXAS_HOLDEM)
+  status      TableStatus @default(WAITING)
+  
+  // Table Configuration
+  maxPlayers  Int         @default(9)
+  minPlayers  Int         @default(2)
+  smallBlind  Int         @default(10)
+  bigBlind    Int         @default(20)
+  buyInMin    Int         @default(100)
+  buyInMax    Int         @default(10000)
+  
+  // Advanced Settings
+  isPrivate   Boolean     @default(false)
+  password    String?
+  timeLimit   Int         @default(30) // seconds per action
+  
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  games       Game[]
+  
+  @@map("tables")
+}
+
+model Game {
+  id          String      @id @default(cuid())
+  tableId     String
+  gameNumber  Int         // Game sequence number for this table
+  status      GameStatus  @default(WAITING)
+  
+  // Game State
+  currentRound   Int         @default(0)
+  currentPhase   GamePhase   @default(PREFLOP)
+  pot            Int         @default(0)
+  sidePots       Json?       // SidePot[]
+  communityCards Json?       // Card[]
+  
+  // Current Action
+  currentPlayerId String?
+  dealerPosition  Int         @default(0)
+  smallBlindPos   Int         @default(1)
+  bigBlindPos     Int         @default(2)
+  
+  // Timing
+  actionStartTime DateTime?
+  actionTimeLimit Int         @default(30)
+  
+  // Results
+  winnerId        String?
+  winningHand     Json?       // HandResult
+  
+  // Timestamps
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  table           Table               @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  participants    GameParticipation[]
+  events          GameEvent[]
+  
+  @@unique([tableId, gameNumber])
+  @@map("games")
+}
+
+model GameParticipation {
+  id       String @id @default(cuid())
+  gameId   String
+  userId   String
+  position Int
+  
+  // Starting State
+  startingChips   Int
+  buyInAmount     Int
+  
+  // Current Game State
+  chips           Int
+  currentBet      Int             @default(0)
+  totalBet        Int             @default(0)
+  status          PlayerStatus    @default(ACTIVE)
+  cards           Json?           // Card[]
+  
+  // Action State
+  hasActed        Boolean         @default(false)
+  lastAction      PlayerAction?
+  lastActionTime  DateTime?
+  
+  // Results
+  finalPosition   Int?
+  winnings        Int             @default(0)
+  rakePaid        Int             @default(0)
+  
+  // Hand Analysis
+  bestHand        Json?           // HandResult
+  handRank        Int?
+  
+  // Timestamps
+  joinedAt        DateTime        @default(now())
+  leftAt          DateTime?
+  
+  // Relations
+  game            Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([gameId, userId])
+  @@unique([gameId, position])
+  @@map("game_participations")
+}
+
+model GameEvent {
+  id        String    @id @default(cuid())
+  gameId    String
+  playerId  String?
+  
+  // Event Details
+  type      EventType
+  data      Json
+  version   Int
+  
+  // Metadata
+  phase     GamePhase?
+  round     Int?
+  
+  // Timestamps
+  createdAt DateTime  @default(now())
+  
+  // Relations
+  game      Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  @@index([gameId, version])
+  @@map("game_events")
+}
+
+model AIAnalysis {
+  id        String   @id @default(cuid())
+  userId    String
+  gameId    String
+  
+  // Hand Information
+  holeCards       Json            // Card[]
+  communityCards  Json            // Card[]
+  position        Int
+  
+  // Analysis Data
+  handStrength    Float
+  winProbability  Float
+  tieProba        Float           @default(0)
+  expectedValue   Float
+  potOdds         Float
+  impliedOdds     Float
+  
+  // Recommendations
+  recommendation  AIRecommendation
+  confidence      Float           // 0-1
+  reasoning       String?
+  
+  // Pattern Analysis
+  aggressionLevel     Float       @default(0)
+  tightnessLevel      Float       @default(0)
+  bluffFrequency      Float       @default(0)
+  positionalAwareness Float       @default(0)
+  
+  // Context
+  potSize         Int
+  betToCall       Int
+  playersInHand   Int
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  
+  // Relations
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("ai_analyses")
+}
+
+model Tournament {
+  id              String              @id @default(cuid())
+  name            String
+  type            TournamentType      @default(SIT_N_GO)
+  status          TournamentStatus    @default(REGISTERING)
+  
+  // Configuration
+  maxPlayers      Int                 @default(9)
+  buyIn           Int
+  prize           Int
+  structure       Json                // Blind structure
+  
+  // State
+  currentLevel    Int                 @default(1)
+  playersLeft     Int                 @default(0)
+  
+  // Timestamps
+  startTime       DateTime?
+  endTime         DateTime?
+  registrationEnd DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relations
+  participants    TournamentParticipation[]
+  
+  @@map("tournaments")
+}
+
+model TournamentParticipation {
+  id            String      @id @default(cuid())
+  tournamentId  String
+  userId        String
+  
+  // State
+  chips         Int
+  position      Int?
+  status        PlayerStatus @default(ACTIVE)
+  
+  // Results
+  finalRank     Int?
+  prize         Int         @default(0)
+  
+  // Timestamps
+  registeredAt  DateTime    @default(now())
+  eliminatedAt  DateTime?
+  
+  // Relations
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([tournamentId, userId])
+  @@map("tournament_participations")
+}
+
+model ServerStatus {
+  id              String          @id @default(cuid())
+  serverId        String          @unique
+  serverType      ServerType
+  status          ServerStatus    @default(ONLINE)
+  
+  // Metrics
+  currentTables   Int             @default(0)
+  currentPlayers  Int             @default(0)
+  cpuUsage        Float           @default(0)
+  memoryUsage     Float           @default(0)
+  
+  // Configuration
+  maxTables       Int             @default(20)
+  maxPlayers      Int             @default(180)
+  region          String?
+  
+  // Network
+  host            String
+  port            Int
+  
+  // Timestamps
+  lastHeartbeat   DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@map("server_status")
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  tableId   String?
+  gameId    String?
+  userId    String
+  
+  // Content
+  message   String
+  type      MessageType @default(CHAT)
+  
+  // Moderation
+  isSystem  Boolean     @default(false)
+  isVisible Boolean     @default(true)
+  
+  // Timestamps
+  createdAt DateTime    @default(now())
+  
+  @@index([tableId, createdAt])
+  @@index([gameId, createdAt])
+  @@map("chat_messages")
+}
+
+model GameStatistics {
+  id              String   @id @default(cuid())
+  userId          String
+  period          String   // daily, weekly, monthly, yearly
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Game Counts
+  gamesPlayed     Int      @default(0)
+  gamesWon        Int      @default(0)
+  handsPlayed     Int      @default(0)
+  handsWon        Int      @default(0)
+  
+  // Financial
+  totalWinnings   Int      @default(0)
+  totalLosses     Int      @default(0)
+  netProfit       Int      @default(0)
+  biggestWin      Int      @default(0)
+  biggestLoss     Int      @default(0)
+  
+  // Playing Style
+  vpip            Float    @default(0) // Voluntarily Put In Pot
+  pfr             Float    @default(0) // Pre-flop Raise
+  aggression      Float    @default(0)
+  wtsd            Float    @default(0) // Went To Showdown
+  wmsd            Float    @default(0) // Won Money at Showdown
+  
+  // Position Stats
+  buttonWinRate   Float    @default(0)
+  sbWinRate       Float    @default(0)
+  bbWinRate       Float    @default(0)
+  utgWinRate      Float    @default(0)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, period, periodStart])
+  @@map("game_statistics")
+}
+
+// Enums
+enum GameType {
+  TEXAS_HOLDEM
+  OMAHA
+  OMAHA_HI_LO
+  SEVEN_CARD_STUD
+}
+
+enum TableStatus {
+  WAITING
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum GameStatus {
+  WAITING
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+  PAUSED
+}
+
+enum GamePhase {
+  PREFLOP
+  FLOP
+  TURN
+  RIVER
+  SHOWDOWN
+  FINISHED
+}
+
+enum PlayerStatus {
+  ACTIVE
+  FOLDED
+  ALL_IN
+  SITTING_OUT
+  DISCONNECTED
+  ELIMINATED
+}
+
+enum PlayerAction {
+  FOLD
+  CHECK
+  CALL
+  BET
+  RAISE
+  ALL_IN
+}
+
+enum EventType {
+  // Game Events
+  GAME_CREATED
+  GAME_STARTED
+  GAME_ENDED
+  GAME_PAUSED
+  GAME_RESUMED
+  
+  // Player Events
+  PLAYER_JOINED
+  PLAYER_LEFT
+  PLAYER_DISCONNECTED
+  PLAYER_RECONNECTED
+  PLAYER_SITTING_OUT
+  PLAYER_SITTING_IN
+  
+  // Card Events
+  CARDS_DEALT
+  COMMUNITY_CARDS_DEALT
+  CARDS_MUCKED
+  CARDS_SHOWN
+  
+  // Betting Events
+  BET_PLACED
+  PLAYER_FOLDED
+  PLAYER_CALLED
+  PLAYER_RAISED
+  PLAYER_ALL_IN
+  PLAYER_CHECKED
+  
+  // Round Events
+  ROUND_STARTED
+  ROUND_ENDED
+  BETTING_ROUND_STARTED
+  BETTING_ROUND_ENDED
+  
+  // Showdown Events
+  SHOWDOWN_STARTED
+  HAND_REVEALED
+  WINNER_DETERMINED
+  POT_AWARDED
+  SIDE_POT_AWARDED
+  
+  // Special Events
+  DEALER_MOVED
+  BLINDS_POSTED
+  ANTE_POSTED
+  TIMEOUT_WARNING
+  PLAYER_TIMEOUT
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+  DECLINED
+}
+
+enum AIRecommendation {
+  FOLD
+  CHECK
+  CALL
+  BET_SMALL
+  BET_MEDIUM
+  BET_LARGE
+  RAISE_SMALL
+  RAISE_MEDIUM
+  RAISE_LARGE
+  ALL_IN
+}
+
+enum TournamentType {
+  SIT_N_GO
+  SCHEDULED
+  SATELLITE
+  FREEROLL
+}
+
+enum TournamentStatus {
+  REGISTERING
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+enum ServerType {
+  MASTER
+  DEDICATED
+  AI
+}
+
+enum ServerStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+  OVERLOADED
+}
+
+enum MessageType {
+  CHAT
+  SYSTEM
+  ANNOUNCEMENT
+  PRIVATE
+  EMOTE
+}

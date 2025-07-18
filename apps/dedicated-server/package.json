@@ -1,0 +1,38 @@
+{
+  "name": "@poker-game/dedicated-server",
+  "version": "1.0.0",
+  "description": "Dedicated game server for real-time poker gameplay",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "dependencies": {
+    "@poker-game/shared": "*",
+    "@poker-game/database": "*",
+    "@poker-game/logger": "*",
+    "socket.io": "^4.7.4",
+    "redis": "^4.6.10",
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "zod": "^3.22.4",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^9.0.7",
+    "@types/jest": "^29.5.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "ts-node-dev": "^2.0.0",
+    "socket.io-client": "^4.7.4"
+  }
+}
