@@ -411,3 +411,8 @@ npm run start:client    # Web Client
 # 4. Docker로 실행
 npm run docker:up
 ```
+
+packages/shared: 공통 타입, Snowflake, Hash Ring 구현
+packages/database: Prisma 클라이언트, Repository 패턴 구현
+dedicated-server: 게임 로직, 테이블 관리, WebSocket 처리
+master-server: 플레이어 매칭, 서버 관리, API
