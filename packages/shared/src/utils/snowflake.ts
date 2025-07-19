@@ -3,119 +3,129 @@
  * 64-bit ID: 1 bit (sign) + 41 bits (timestamp) + 10 bits (machine) + 12 bits (sequence)
  */
 export class SnowflakeGenerator {
-    private static readonly EPOCH = 1640995200000; // 2022-01-01 00:00:00 UTC
-    private static readonly MACHINE_ID_BITS = 10;
-    private static readonly SEQUENCE_BITS = 12;
-    private static readonly MAX_MACHINE_ID = (1 << SnowflakeGenerator.MACHINE_ID_BITS) - 1;
-    private static readonly MAX_SEQUENCE = (1 << SnowflakeGenerator.SEQUENCE_BITS) - 1;
+  private static readonly EPOCH = 1640995200000; // 2022-01-01 00:00:00 UTC
+  private static readonly MACHINE_ID_BITS = 10;
+  private static readonly SEQUENCE_BITS = 12;
+  private static readonly MAX_MACHINE_ID =
+    (1 << SnowflakeGenerator.MACHINE_ID_BITS) - 1;
+  private static readonly MAX_SEQUENCE =
+    (1 << SnowflakeGenerator.SEQUENCE_BITS) - 1;
 
-    private machineId: number;
-    private sequence: number = 0;
-    private lastTimestamp: number = 0;
+  private machineId: number;
+  private sequence: number = 0;
+  private lastTimestamp: number = 0;
 
-    constructor(machineId: number) {
-        if (machineId < 0 || machineId > SnowflakeGenerator.MAX_MACHINE_ID) {
-            throw new Error(`Machine ID must be between 0 and ${SnowflakeGenerator.MAX_MACHINE_ID}`);
-        }
-        this.machineId = machineId;
+  constructor(machineId: number) {
+    if (machineId < 0 || machineId > SnowflakeGenerator.MAX_MACHINE_ID) {
+      throw new Error(
+        `Machine ID must be between 0 and ${SnowflakeGenerator.MAX_MACHINE_ID}`
+      );
+    }
+    this.machineId = machineId;
+  }
+
+  /**
+   * Generate a new Snowflake ID
+   */
+  generate(): string {
+    let timestamp = Date.now();
+
+    // Clock moved backwards
+    if (timestamp < this.lastTimestamp) {
+      throw new Error(
+        `Clock moved backwards. Refusing to generate id for ${this.lastTimestamp - timestamp}ms`
+      );
     }
 
-    /**
-     * Generate a new Snowflake ID
-     */
-    generate(): string {
-        let timestamp = Date.now();
+    // Same millisecond
+    if (timestamp === this.lastTimestamp) {
+      this.sequence = (this.sequence + 1) & SnowflakeGenerator.MAX_SEQUENCE;
 
-        // Clock moved backwards
-        if (timestamp < this.lastTimestamp) {
-            throw new Error(`Clock moved backwards. Refusing to generate id for ${this.lastTimestamp - timestamp}ms`);
-        }
-
-        // Same millisecond
-        if (timestamp === this.lastTimestamp) {
-            this.sequence = (this.sequence + 1) & SnowflakeGenerator.MAX_SEQUENCE;
-
-            // Sequence overflow - wait for next millisecond
-            if (this.sequence === 0) {
-                timestamp = this.waitNextMillis(this.lastTimestamp);
-            }
-        } else {
-            this.sequence = 0;
-        }
-
-        this.lastTimestamp = timestamp;
-
-        // Combine all parts using BigInt for 64-bit operations
-        const id = (BigInt(timestamp - SnowflakeGenerator.EPOCH) << 22n) |
-            (BigInt(this.machineId) << 12n) |
-            BigInt(this.sequence);
-
-        return id.toString();
+      // Sequence overflow - wait for next millisecond
+      if (this.sequence === 0) {
+        timestamp = this.waitNextMillis(this.lastTimestamp);
+      }
+    } else {
+      this.sequence = 0;
     }
 
-    /**
-     * Wait until next millisecond
-     */
-    private waitNextMillis(lastTimestamp: number): number {
-        let timestamp = Date.now();
-        while (timestamp <= lastTimestamp) {
-            timestamp = Date.now();
-        }
-        return timestamp;
+    this.lastTimestamp = timestamp;
+
+    // Combine all parts using BigInt for 64-bit operations
+    const id =
+      (BigInt(timestamp - SnowflakeGenerator.EPOCH) << 22n) |
+      (BigInt(this.machineId) << 12n) |
+      BigInt(this.sequence);
+
+    return id.toString();
+  }
+
+  /**
+   * Wait until next millisecond
+   */
+  private waitNextMillis(lastTimestamp: number): number {
+    let timestamp = Date.now();
+    while (timestamp <= lastTimestamp) {
+      timestamp = Date.now();
     }
+    return timestamp;
+  }
 
-    /**
-     * Parse Snowflake ID to extract components
-     */
-    static parse(snowflakeId: string): {
-        timestamp: Date;
-        machineId: number;
-        sequence: number;
-        timestampMs: number;
-    } {
-        const id = BigInt(snowflakeId);
+  /**
+   * Parse Snowflake ID to extract components
+   */
+  static parse(snowflakeId: string): {
+    timestamp: Date;
+    machineId: number;
+    sequence: number;
+    timestampMs: number;
+  } {
+    const id = BigInt(snowflakeId);
 
-        const timestamp = Number(id >> 22n) + SnowflakeGenerator.EPOCH;
-        const machineId = Number((id >> 12n) & BigInt(SnowflakeGenerator.MAX_MACHINE_ID));
-        const sequence = Number(id & BigInt(SnowflakeGenerator.MAX_SEQUENCE));
+    const timestamp = Number(id >> 22n) + SnowflakeGenerator.EPOCH;
+    const machineId = Number(
+      (id >> 12n) & BigInt(SnowflakeGenerator.MAX_MACHINE_ID)
+    );
+    const sequence = Number(id & BigInt(SnowflakeGenerator.MAX_SEQUENCE));
 
-        return {
-            timestamp: new Date(timestamp),
-            machineId,
-            sequence,
-            timestampMs: timestamp
-        };
-    }
+    return {
+      timestamp: new Date(timestamp),
+      machineId,
+      sequence,
+      timestampMs: timestamp,
+    };
+  }
 
-    /**
-     * Extract timestamp from Snowflake ID
-     */
-    static getTimestamp(snowflakeId: string): Date {
-        return SnowflakeGenerator.parse(snowflakeId).timestamp;
-    }
+  /**
+   * Extract timestamp from Snowflake ID
+   */
+  static getTimestamp(snowflakeId: string): Date {
+    return SnowflakeGenerator.parse(snowflakeId).timestamp;
+  }
 
-    /**
-     * Extract machine ID from Snowflake ID
-     */
-    static getMachineId(snowflakeId: string): number {
-        return SnowflakeGenerator.parse(snowflakeId).machineId;
-    }
+  /**
+   * Extract machine ID from Snowflake ID
+   */
+  static getMachineId(snowflakeId: string): number {
+    return SnowflakeGenerator.parse(snowflakeId).machineId;
+  }
 
-    /**
-     * Check if ID was generated by specific machine
-     */
-    static isFromMachine(snowflakeId: string, machineId: number): boolean {
-        return SnowflakeGenerator.getMachineId(snowflakeId) === machineId;
-    }
+  /**
+   * Check if ID was generated by specific machine
+   */
+  static isFromMachine(snowflakeId: string, machineId: number): boolean {
+    return SnowflakeGenerator.getMachineId(snowflakeId) === machineId;
+  }
 
-    /**
-     * Generate ID for testing with custom timestamp
-     */
-    generateAtTime(timestamp: number): string {
-        const id = (BigInt(timestamp - SnowflakeGenerator.EPOCH) << 22n) |
-            (BigInt(this.machineId) << 12n) |
-            BigInt(this.sequence++);
+  /**
+   * Generate ID for testing with custom timestamp
+   */
+  generateAtTime(timestamp: number): string {
+    const id =
+      (BigInt(timestamp - SnowflakeGenerator.EPOCH) << 22n) |
+      (BigInt(this.machineId) << 12n) |
+      BigInt(this.sequence++);
 
-        return id.toString();
-    }
+    return id.toString();
+  }
 }

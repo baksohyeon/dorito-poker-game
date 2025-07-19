@@ -5,3 +5,8 @@ export * from './socket.types';
 export * from './server.types';
 export * from './ai.types';
 export * from './events.types';
+export * from './tournament.types';
+export * from './auth.types';
+export * from './error.types';
+export * from './chat.types';
+export * from './analytics.types';
