@@ -1,7 +1,7 @@
 
 // apps/dedicated-server/src/managers/table-manager.ts
-import { SnowflakeGenerator } from '@poker-game/shared/src/utils';
-import { Table, TableConfig, PlayerState } from '@poker-game/shared/src/types';
+import { SnowflakeGenerator } from '@poker-game/shared';
+import { Table, TableConfig, PlayerState } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { EventManager } from './event-manager';
@@ -9,7 +9,7 @@ import { EventManager } from './event-manager';
 export class TableManager {
     private tables: Map<string, Table> = new Map();
     private snowflakeGenerator: SnowflakeGenerator;
-    private eventManager: EventManager;
+    private eventManager!: EventManager;
 
     constructor(
         private serverId: string,
@@ -32,7 +32,7 @@ export class TableManager {
             config,
             status: 'waiting',
             players: new Map(),
-            currentGame: null,
+            currentGame: undefined,
             gamesPlayed: 0,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -83,10 +83,10 @@ export class TableManager {
         // Find available position
         let playerPosition = position;
         if (playerPosition === undefined) {
-            playerPosition = this.findAvailablePosition(table);
+            playerPosition = this.findAvailablePosition(table) ?? undefined;
         }
 
-        if (playerPosition === null) {
+        if (playerPosition === undefined) {
             return { success: false, error: 'No available positions' };
         }
 
@@ -103,7 +103,7 @@ export class TableManager {
             currentBet: 0,
             totalBet: 0,
             cards: [],
-            position: playerPosition,
+            position: playerPosition!,
             status: 'active',
             hasActed: false,
             isDealer: false,
@@ -161,7 +161,7 @@ export class TableManager {
 
     private findAvailablePosition(table: Table): number | null {
         const occupiedPositions = new Set(
-            Array.from(table.players.values()).map(p => p.position)
+            Array.from(table.players.values()).map((p: PlayerState) => p.position)
         );
 
         for (let pos = 0; pos < table.config.maxPlayers; pos++) {

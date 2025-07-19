@@ -2,8 +2,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import {
     ClientToServerEvents,
-    ServerToClientEvents
-} from '@poker-game/shared/src/types';
+    ServerToClientEvents,
+    ValidationHelper
+} from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 import { TableManager } from './table-manager';
 import { GameManager } from './game-manager';
@@ -30,10 +31,10 @@ export class EnhancedConnectionManager {
     private connections: Map<string, EnhancedPlayerConnection> = new Map();
     private playerSockets: Map<string, Socket> = new Map();
     private ipConnections: Map<string, Set<string>> = new Map();
-    private tableManager: TableManager;
-    private gameManager: GameManager;
-    private eventManager: EventManager;
-    private securityManager: SecurityManager;
+    private tableManager!: TableManager;
+    private gameManager!: GameManager;
+    private eventManager!: EventManager;
+    private securityManager!: SecurityManager;
 
     // Configuration
     private readonly MAX_CONNECTIONS_PER_IP = 10;
@@ -179,7 +180,7 @@ export class EnhancedConnectionManager {
             if (result.success) {
                 // Update connection info
                 connection.tableId = sanitizedData.tableId;
-                connection.position = result.position;
+                connection.position = result.position ?? null;
 
                 // Join socket room
                 socket.join(sanitizedData.tableId);
@@ -299,8 +300,7 @@ export class EnhancedConnectionManager {
             this.io.to(connection.tableId).emit('chat:message', {
                 playerId: connection.playerId,
                 message: sanitizedMessage,
-                timestamp: now,
-                type: data.type || 'chat'
+                timestamp: now
             });
 
             logger.debug(`Chat message from ${connection.playerId}: ${sanitizedMessage.substring(0, 50)}...`);
@@ -453,7 +453,7 @@ export class EnhancedConnectionManager {
     }
 
     sendToTable(tableId: string, event: string, data: any): void {
-        this.io.to(tableId).emit(event, data);
+        (this.io.to(tableId) as any).emit(event, data);
     }
 
     getConnectionStats(): any {

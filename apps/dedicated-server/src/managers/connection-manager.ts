@@ -585,7 +585,7 @@ export class ConnectionManager {
     }
 
     sendToTable(tableId: string, event: string, data: any): void {
-        this.io.to(tableId).emit(event, data);
+        (this.io.to(tableId) as any).emit(event, data);
     }
 
     getConnectionStats(): any {

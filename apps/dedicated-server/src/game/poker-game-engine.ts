@@ -146,7 +146,8 @@ export class PokerGameEngine implements IGameEngine {
 
     private processCheck(gameState: GameState, player: PlayerState): void {
         // Can only check if no bet to call
-        const maxBet = Math.max(...Array.from(gameState.players.values()).map(p => p.currentBet));
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
         if (player.currentBet < maxBet) {
             throw new Error('Cannot check, there is a bet to call');
         }
@@ -155,7 +156,8 @@ export class PokerGameEngine implements IGameEngine {
     }
 
     private processCall(gameState: GameState, player: PlayerState): void {
-        const maxBet = Math.max(...Array.from(gameState.players.values()).map(p => p.currentBet));
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
         const callAmount = maxBet - player.currentBet;
 
         if (callAmount <= 0) {
@@ -178,7 +180,8 @@ export class PokerGameEngine implements IGameEngine {
 
     private processBet(gameState: GameState, player: PlayerState, amount: number): void {
         // Can only bet if no one else has bet
-        const maxBet = Math.max(...Array.from(gameState.players.values()).map(p => p.currentBet));
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
         if (maxBet > 0) {
             throw new Error('Cannot bet, there is already a bet');
         }
@@ -200,7 +203,8 @@ export class PokerGameEngine implements IGameEngine {
     }
 
     private processRaise(gameState: GameState, player: PlayerState, amount: number): void {
-        const maxBet = Math.max(...Array.from(gameState.players.values()).map(p => p.currentBet));
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
 
         if (amount <= maxBet) {
             throw new Error('Raise amount must be higher than current bet');
@@ -242,7 +246,8 @@ export class PokerGameEngine implements IGameEngine {
     }
 
     private isBettingRoundComplete(gameState: GameState): boolean {
-        const activePlayers = Array.from(gameState.players.values()).filter(p =>
+        const players = Array.from(gameState.players.values());
+        const activePlayers = players.filter((p: PlayerState) =>
             p.status === 'active' || p.status === 'all-in'
         );
 
@@ -251,16 +256,17 @@ export class PokerGameEngine implements IGameEngine {
         }
 
         // Check if all active players have acted and bets are equal
-        const maxBet = Math.max(...activePlayers.map(p => p.currentBet));
+        const maxBet = Math.max(...activePlayers.map((p: PlayerState) => p.currentBet));
 
-        return activePlayers.every(p => {
+        return activePlayers.every((p: PlayerState) => {
             return p.hasActed && (p.currentBet === maxBet || p.status === 'all-in');
         });
     }
 
     private advanceToNextPhase(gameState: GameState): void {
         // Reset player actions
-        for (const player of gameState.players.values()) {
+        const players = Array.from(gameState.players.values());
+        for (const player of players) {
             player.hasActed = false;
             player.currentBet = 0;
         }
@@ -296,10 +302,9 @@ export class PokerGameEngine implements IGameEngine {
     }
 
     private postBlinds(gameState: GameState): void {
-        const smallBlindPlayer = Array.from(gameState.players.values())
-            .find(p => p.position === gameState.smallBlindPosition);
-        const bigBlindPlayer = Array.from(gameState.players.values())
-            .find(p => p.position === gameState.bigBlindPosition);
+        const players = Array.from(gameState.players.values());
+        const smallBlindPlayer = players.find(p => p.position === gameState.smallBlindPosition);
+        const bigBlindPlayer = players.find(p => p.position === gameState.bigBlindPosition);
 
         if (smallBlindPlayer && smallBlindPlayer.status === 'active') {
             const sbAmount = Math.min(gameState.blinds.small, smallBlindPlayer.chips);
@@ -322,7 +327,7 @@ export class PokerGameEngine implements IGameEngine {
         const players = Array.from(gameState.players.values());
 
         // Set dealer button
-        players.forEach(p => {
+        players.forEach((p: PlayerState) => {
             p.isDealer = p.position === gameState.dealerPosition;
             p.isSmallBlind = p.position === gameState.smallBlindPosition;
             p.isBigBlind = p.position === gameState.bigBlindPosition;
@@ -330,9 +335,10 @@ export class PokerGameEngine implements IGameEngine {
     }
 
     private getNextActivePlayer(gameState: GameState, currentPosition: string | null): string | null {
-        const players = Array.from(gameState.players.values())
-            .filter(p => p.status === 'active')
-            .sort((a, b) => a.position - b.position);
+        const allPlayers = Array.from(gameState.players.values());
+        const players = allPlayers
+            .filter((p: PlayerState) => p.status === 'active')
+            .sort((a: PlayerState, b: PlayerState) => a.position - b.position);
 
         if (players.length === 0) return null;
 
@@ -435,7 +441,8 @@ export class PokerGameEngine implements IGameEngine {
         }
 
         const actions = ['fold'];
-        const maxBet = Math.max(...Array.from(gameState.players.values()).map(p => p.currentBet));
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
         const callAmount = maxBet - player.currentBet;
 
         if (callAmount === 0) {

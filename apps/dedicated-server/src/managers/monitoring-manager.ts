@@ -338,7 +338,7 @@ export class MonitoringManager extends EventEmitter {
     exportMetrics(): {
         performance: PerformanceMetrics[];
         game: GameMetrics;
-        health: ReturnType<typeof this.getHealthStatus>;
+        health: ReturnType<MonitoringManager['getHealthStatus']>;
     } {
         return {
             performance: this.getPerformanceHistory(60), // Last hour

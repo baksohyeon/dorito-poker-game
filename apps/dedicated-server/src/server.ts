@@ -169,7 +169,6 @@ export class DedicatedServer {
                 res.json({
                     status: health.status,
                     serverId: config.serverId,
-                    uptime: process.uptime(),
                     ...stats,
                     health,
                     timestamp: Date.now()
