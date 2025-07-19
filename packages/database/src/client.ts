@@ -8,28 +8,12 @@ class DatabaseClient {
 
   static getInstance(): PrismaClient {
     if (!DatabaseClient.instance) {
-      DatabaseClient.instance = new PrismaClient();
-
-      // Setup logging
-      DatabaseClient.instance.$on('query', (e: any) => {
-        logger.debug('Database Query', {
-          query: e.query,
-          params: e.params,
-          duration: e.duration,
-        });
+      DatabaseClient.instance = new PrismaClient({
+        log: ['query', 'info', 'warn', 'error'],
       });
 
-      DatabaseClient.instance.$on('error', (e: any) => {
-        logger.error('Database Error', e);
-      });
-
-      DatabaseClient.instance.$on('info', (e: any) => {
-        logger.info('Database Info', e);
-      });
-
-      DatabaseClient.instance.$on('warn', (e: any) => {
-        logger.warn('Database Warning', e);
-      });
+      // Setup basic error logging only
+      // Note: Query logging requires Prisma log configuration in constructor
     }
 
     return DatabaseClient.instance;

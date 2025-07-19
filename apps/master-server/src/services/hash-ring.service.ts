@@ -1,6 +1,6 @@
 
 // apps/master-server/src/services/hash-ring.service.ts
-import { ConsistentHashRing, AffectedRange } from '@poker-game/shared/utils';
+import { ConsistentHashRing, AffectedRange } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 
 export class HashRingService {

@@ -6,9 +6,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { logger } from '@poker-game/logger';
+import { databaseService } from '@poker-game/database';
 import { errorHandler } from './middleware/error.middleware';
-import { authMiddleware } from './middleware/auth.middleware';
-import { validationMiddleware } from './middleware/validation.middleware';
 import { ServerManager } from './services/server-manager.service';
 import { PlayerMatchingService } from './services/player-matching.service';
 import { AuthService } from './services/auth.service';
@@ -19,10 +18,10 @@ import { MasterServerConfig } from './config';
 export class MasterServer {
     private app: express.Application;
     private httpServer: any;
-    private serverManager: ServerManager;
-    private playerMatchingService: PlayerMatchingService;
-    private authService: AuthService;
-    private hashRingService: HashRingService;
+    private serverManager!: ServerManager;
+    private playerMatchingService!: PlayerMatchingService;
+    private authService!: AuthService;
+    private hashRingService!: HashRingService;
     private isRunning = false;
 
     constructor(private config: MasterServerConfig) {

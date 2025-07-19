@@ -1,6 +1,6 @@
 
 // apps/master-server/src/services/server-manager.service.ts
-import { ServerInfo, ServerMetrics } from '@poker-game/shared/types';
+import { ServerInfo, ServerMetrics } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { HashRingService } from './hash-ring.service';

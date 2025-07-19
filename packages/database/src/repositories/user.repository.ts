@@ -220,7 +220,7 @@ class UserRepository extends BaseRepository<User> {
     return this.findPaginated({ where }, pagination);
   }
 
-  async getTopPlayers(limit: number = 50): Promise<User[]> {
+  async getTopPlayers(limit: number = 50) {
     return this.model.findMany({
       take: limit,
       orderBy: [
@@ -267,6 +267,11 @@ class UserRepository extends BaseRepository<User> {
         updatedAt: new Date(),
       },
     });
+  }
+
+  async deleteAllUsers(): Promise<{ count: number }> {
+    // For test cleanup - hard delete all users
+    return this.model.deleteMany({});
   }
 }
 

@@ -195,6 +195,8 @@ class GameRepository extends BaseRepository<Game> {
         gameId,
         ...eventData,
         version: nextVersion,
+        type: eventData.type as any, // Type cast to fix enum issue
+        phase: eventData.phase as any, // Type cast to fix enum issue
       },
     });
   }
@@ -362,7 +364,7 @@ class GameRepository extends BaseRepository<Game> {
     const averagePot =
       totalHands > 0
         ? potEvents.reduce(
-            (sum: number, event: GameEvent) => sum + (event.data.amount || 0),
+            (sum: number, event: GameEvent) => sum + ((event.data as any)?.amount || 0),
             0
           ) / totalHands
         : 0;
@@ -370,7 +372,7 @@ class GameRepository extends BaseRepository<Game> {
     const participants =
       game.participants?.map((p: GameParticipation) => ({
         userId: p.userId,
-        username: p.user?.username || 'Unknown',
+        username: (p as any).user?.username || 'Unknown',
         finalPosition: p.finalPosition || null,
         winnings: p.winnings || 0,
       })) || [];

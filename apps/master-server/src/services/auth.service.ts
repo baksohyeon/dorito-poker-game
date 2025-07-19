@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { config } from '../config';
-import { CryptoHelper } from '@poker-game/shared/utils';
+import { CryptoHelper } from '@poker-game/shared';
 
 export interface LoginCredentials {
     email: string;
@@ -246,7 +246,7 @@ export class AuthService {
 
         return jwt.sign(payload, config.jwtSecret, {
             expiresIn: config.jwtExpiresIn
-        });
+        } as jwt.SignOptions);
     }
 
     private generateRefreshToken(userId: string): string {

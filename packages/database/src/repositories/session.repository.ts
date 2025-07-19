@@ -143,6 +143,11 @@ class SessionRepository extends BaseRepository<UserSession> {
       },
     });
   }
+
+  async deleteAllSessions(): Promise<{ count: number }> {
+    // For test cleanup - hard delete all sessions
+    return this.model.deleteMany({});
+  }
 }
 
 export { SessionRepository };

@@ -74,7 +74,8 @@ export class CryptoHelper {
     key: string
   ): { encrypted: string; iv: string; tag: string } {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', key);
+    const keyBuffer = crypto.createHash('sha256').update(key).digest();
+    const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, iv);
     cipher.setAAD(Buffer.from('poker-game', 'utf8'));
 
     let encrypted = cipher.update(data, 'utf8', 'hex');
@@ -96,7 +97,9 @@ export class CryptoHelper {
     encryptedData: { encrypted: string; iv: string; tag: string },
     key: string
   ): string {
-    const decipher = crypto.createDecipher('aes-256-gcm', key);
+    const keyBuffer = crypto.createHash('sha256').update(key).digest();
+    const iv = Buffer.from(encryptedData.iv, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
     decipher.setAAD(Buffer.from('poker-game', 'utf8'));
     decipher.setAuthTag(Buffer.from(encryptedData.tag, 'hex'));
 

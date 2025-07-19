@@ -3,7 +3,7 @@
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { ServerManager } from './server-manager.service';
-import { TableConfig, ServerInfo } from '@poker-game/shared/types';
+import { TableConfig } from '@poker-game/shared';
 import axios from 'axios';
 
 export interface MatchingCriteria {

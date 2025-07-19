@@ -50,6 +50,7 @@ model User {
   aiAnalyses        AIAnalysis[]
   friendships       Friendship[] @relation("UserFriendships")
   friendOf          Friendship[] @relation("FriendOfUser")
+  tournamentParticipations TournamentParticipation[]
   
   @@map("users")
 }
@@ -66,6 +67,7 @@ model UserSession {
   
   // Timestamps
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   lastUsedAt   DateTime @default(now())
   
   // Relations
@@ -331,10 +333,10 @@ model TournamentParticipation {
 }
 
 model ServerStatus {
-  id              String          @id @default(cuid())
-  serverId        String          @unique
+  id              String              @id @default(cuid())
+  serverId        String              @unique
   serverType      ServerType
-  status          ServerStatus    @default(ONLINE)
+  status          ServerHealthStatus  @default(ONLINE)
   
   // Metrics
   currentTables   Int             @default(0)
@@ -565,7 +567,7 @@ enum ServerType {
   AI
 }
 
-enum ServerStatus {
+enum ServerHealthStatus {
   ONLINE
   OFFLINE
   MAINTENANCE

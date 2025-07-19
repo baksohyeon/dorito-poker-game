@@ -23,10 +23,22 @@ describe('AuthService', () => {
 
     describe('login', () => {
         it('should return a valid token for valid credentials', async () => {
+            // First register a user
+            const registerResult = await authService.register({
+                email: 'test@example.com',
+                username: 'testuser',
+                password: 'password123'
+            });
+
+            expect(registerResult.success).toBe(true);
+            expect(registerResult.user?.id).toBeDefined();
+            expect(registerResult.user?.username).toBe('testuser');
+
+            // Then try to login
             const result = await authService.login({
                 email: 'test@example.com',
                 password: 'password123'
-                        });
+            });
 
             expect(result.success).toBe(true);
             expect(result.token).toBeDefined();

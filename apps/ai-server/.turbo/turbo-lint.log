@@ -2,15 +2,3 @@
 > @poker-game/ai-server@1.0.0 lint
 > eslint src/**/*.ts
 
-
-Oops! Something went wrong! :(
-
-ESLint: 8.57.1
-
-No files matching the pattern "src/**/*.ts" were found.
-Please check for typing mistakes in the pattern.
-
-npm error Lifecycle script `lint` failed with error:
-npm error Error: command failed
-npm error   in workspace: @poker-game/ai-server@1.0.0
-npm error   at location: /Users/dorito/games/pokerlulu/apps/ai-server
