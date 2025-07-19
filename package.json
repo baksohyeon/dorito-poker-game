@@ -9,7 +9,8 @@
     "packages/*",
     "apps/master-server",
     "apps/dedicated-server",
-    "apps/ai-server"
+    "apps/ai-server",
+    "apps/web-client"
   ],
   "scripts": {
     "build": "turbo run build",

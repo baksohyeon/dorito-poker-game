@@ -96,7 +96,7 @@ export const TWO_FACTOR_CONFIG = {
   BACKUP_CODES_COUNT: 10,
   QR_CODE_SIZE: 200,
   SECRET_LENGTH: 32,
-  ISSUER: 'PokerLulu',
+  ISSUER: 'PokerDorito',
 } as const;
 
 // Rate limiting for authentication

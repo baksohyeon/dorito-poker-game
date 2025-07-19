@@ -26,6 +26,7 @@ This will:
 
 #### Development Mode (Recommended)
 ```bash
+ npx prisma db push
 # Start all services with hot reload
 npm run start
 # or

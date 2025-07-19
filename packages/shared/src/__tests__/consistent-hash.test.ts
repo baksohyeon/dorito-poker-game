@@ -70,7 +70,7 @@ describe('ConsistentHashRing', () => {
       const distribution = hashRing.testDistribution(3000);
 
       // Each server should get roughly 1000 keys (±200 tolerance)
-      for (const [server, count] of distribution) {
+      for (const [_server, count] of distribution) {
         expect(count).toBeGreaterThan(800);
         expect(count).toBeLessThan(1200);
       }
