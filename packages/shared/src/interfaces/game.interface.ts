@@ -34,6 +34,9 @@ export interface IDeck {
   reset(): void;
   getRemainingCount(): number;
   isEmpty(): boolean;
+  peek(count: number): Card[];
+  addCard(card: Card): void;
+  removeCard(card: Card): boolean;
 }
 
 export interface ITableManager {

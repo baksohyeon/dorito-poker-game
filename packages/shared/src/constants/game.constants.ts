@@ -18,6 +18,23 @@ export const RANKS = [
   'K',
 ] as const;
 
+// Card values for game logic
+export const CARD_VALUES: Record<string, number> = {
+  'A': 14,
+  'K': 13,
+  'Q': 12,
+  'J': 11,
+  '10': 10,
+  '9': 9,
+  '8': 8,
+  '7': 7,
+  '6': 6,
+  '5': 5,
+  '4': 4,
+  '3': 3,
+  '2': 2,
+} as const;
+
 // Hand ranking constants
 export const HAND_RANKINGS = {
   HIGH_CARD: 1,
@@ -137,4 +154,24 @@ export const CHAT_LIMITS = {
   MAX_MESSAGE_LENGTH: 500,
   MAX_MESSAGES_PER_MINUTE: 10,
   SLOW_MODE_MIN_INTERVAL: 3, // seconds
+} as const;
+
+// Combined game constants object
+export const GAME_CONSTANTS = {
+  SUITS,
+  RANKS,
+  CARD_VALUES,
+  HAND_RANKINGS,
+  GAME_PHASES,
+  PLAYER_ACTIONS,
+  PLAYER_STATUS,
+  TABLE_STATUS,
+  GAME_TYPES,
+  BETTING_LIMITS,
+  DEFAULT_GAME_SETTINGS,
+  TOURNAMENT_STATUS,
+  TOURNAMENT_TYPES,
+  STANDARD_BLIND_LEVELS,
+  CHAT_MESSAGE_TYPES,
+  CHAT_LIMITS,
 } as const;

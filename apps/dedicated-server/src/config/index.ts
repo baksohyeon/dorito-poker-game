@@ -1,6 +1,6 @@
 
 // apps/dedicated-server/src/config/index.ts
-import { DedicatedServerConfig } from '@poker-game/shared/src/types';
+import { DedicatedServerConfig } from '@poker-game/shared';
 
 export const config: DedicatedServerConfig = {
     serverId: process.env.SERVER_ID || 'dedicated-server-1',

@@ -7,9 +7,9 @@ import {
     Card,
     HandResult,
     SidePot
-} from '@poker-game/shared/types';
-import { IGameEngine } from '@poker-game/shared/interfaces';
-import { GAME_CONSTANTS } from '@poker-game/shared/constants';
+} from '@poker-game/shared';
+import { IGameEngine } from '@poker-game/shared';
+import { GAME_CONSTANTS } from '@poker-game/shared';
 import { Deck } from './deck';
 import { HandEvaluator } from './hand-evaluator';
 import { logger } from '@poker-game/logger';
@@ -44,8 +44,8 @@ export class PokerGameEngine implements IGameEngine {
             players: new Map(players.map(p => [p.id, { ...p }])),
             blinds: { small: 10, big: 20 }, // Should come from table config
             round: 1,
-            lastAction: null,
-            actionStartTime: null,
+            lastAction: undefined,
+            actionStartTime: undefined,
             actionTimeLimit: 30000 // 30 seconds
         };
 
@@ -73,7 +73,7 @@ export class PokerGameEngine implements IGameEngine {
         this.postBlinds(newState);
 
         // Set first player to act (after big blind)
-        newState.currentPlayer = this.getNextActivePlayer(newState, newState.bigBlindPosition);
+        newState.currentPlayer = this.getNextActivePlayer(newState, newState.bigBlindPosition.toString());
         newState.actionStartTime = Date.now();
 
         logger.debug(`Cards dealt for game ${gameState.id}`);
@@ -83,7 +83,7 @@ export class PokerGameEngine implements IGameEngine {
     processAction(gameState: GameState, action: PlayerAction): GameState {
         // Validate action first
         this.validateAction(gameState, action);
-        
+
         const newState = { ...gameState };
         const player = newState.players.get(action.playerId);
 
@@ -102,29 +102,29 @@ export class PokerGameEngine implements IGameEngine {
             logger.warn(`Player ${action.playerId} timed out, auto-folding`);
         } else {
 
-        // Process the action
-        switch (action.type) {
-            case 'fold':
-                this.processFold(newState, player);
-                break;
-            case 'check':
-                this.processCheck(newState, player);
-                break;
-            case 'call':
-                this.processCall(newState, player);
-                break;
-            case 'bet':
-                this.processBet(newState, player, action.amount || 0);
-                break;
-            case 'raise':
-                this.processRaise(newState, player, action.amount || 0);
-                break;
-            case 'all-in':
-                this.processAllIn(newState, player);
-                break;
-            default:
-                throw new Error(`Unknown action type: ${action.type}`);
-        }
+            // Process the action
+            switch (action.type) {
+                case 'fold':
+                    this.processFold(newState, player);
+                    break;
+                case 'check':
+                    this.processCheck(newState, player);
+                    break;
+                case 'call':
+                    this.processCall(newState, player);
+                    break;
+                case 'bet':
+                    this.processBet(newState, player, action.amount || 0);
+                    break;
+                case 'raise':
+                    this.processRaise(newState, player, action.amount || 0);
+                    break;
+                case 'all-in':
+                    this.processAllIn(newState, player);
+                    break;
+                default:
+                    throw new Error(`Unknown action type: ${action.type}`);
+            }
 
             // Update last action
             newState.lastAction = action;
@@ -289,7 +289,7 @@ export class PokerGameEngine implements IGameEngine {
         }
 
         // Set first player to act (after dealer)
-        gameState.currentPlayer = this.getNextActivePlayer(gameState, gameState.dealerPosition);
+        gameState.currentPlayer = this.getNextActivePlayer(gameState, gameState.dealerPosition.toString());
         gameState.actionStartTime = Date.now();
 
         logger.debug(`Advanced to ${gameState.phase} phase`);
@@ -392,10 +392,10 @@ export class PokerGameEngine implements IGameEngine {
 
     awardPot(gameState: GameState, winners: string[]): GameState {
         const newState = { ...gameState };
-        
+
         // Handle side pots if any all-in players
         const sidePots = this.calculateSidePots(newState);
-        
+
         if (sidePots.length > 0) {
             this.distributeSidePots(newState, sidePots, winners);
         } else {
@@ -487,43 +487,43 @@ export class PokerGameEngine implements IGameEngine {
     private calculateSidePots(gameState: GameState): SidePot[] {
         const players = Array.from(gameState.players.values());
         const allInPlayers = players.filter(p => p.status === 'all-in');
-        
+
         if (allInPlayers.length === 0) {
             return [];
         }
 
         const sidePots: SidePot[] = [];
         const betLevels = [...new Set(players.map(p => p.totalBet))].sort((a, b) => a - b);
-        
+
         let previousLevel = 0;
-        
+
         for (const level of betLevels) {
             if (level > previousLevel) {
                 const eligiblePlayers = players.filter(p => p.totalBet >= level);
                 const potAmount = (level - previousLevel) * eligiblePlayers.length;
-                
+
                 if (potAmount > 0) {
                     sidePots.push({
                         amount: potAmount,
                         eligiblePlayers: eligiblePlayers.map(p => p.id)
                     });
                 }
-                
+
                 previousLevel = level;
             }
         }
-        
+
         return sidePots;
     }
 
     private distributeSidePots(gameState: GameState, sidePots: SidePot[], winners: string[]): void {
         for (const sidePot of sidePots) {
             const eligibleWinners = winners.filter(w => sidePot.eligiblePlayers.includes(w));
-            
+
             if (eligibleWinners.length > 0) {
                 const share = Math.floor(sidePot.amount / eligibleWinners.length);
                 const remainder = sidePot.amount % eligibleWinners.length;
-                
+
                 for (let i = 0; i < eligibleWinners.length; i++) {
                     const winner = gameState.players.get(eligibleWinners[i]);
                     if (winner) {
@@ -536,7 +536,7 @@ export class PokerGameEngine implements IGameEngine {
 
     resetForNewHand(gameState: GameState): GameState {
         const newState = { ...gameState };
-        
+
         // Move dealer button
         const activePlayers = Array.from(newState.players.values()).filter(p => p.chips > 0);
         if (activePlayers.length >= 2) {
@@ -544,7 +544,7 @@ export class PokerGameEngine implements IGameEngine {
             newState.smallBlindPosition = (newState.dealerPosition + 1) % activePlayers.length;
             newState.bigBlindPosition = (newState.dealerPosition + 2) % activePlayers.length;
         }
-        
+
         // Reset player states
         for (const player of newState.players.values()) {
             player.cards = [];
@@ -554,25 +554,25 @@ export class PokerGameEngine implements IGameEngine {
             player.isDealer = false;
             player.isSmallBlind = false;
             player.isBigBlind = false;
-            
+
             // Reset status if not broke
             if (player.chips > 0) {
                 player.status = 'active';
             } else {
-                player.status = 'eliminated';
+                player.status = 'sitting-out';
             }
         }
-        
+
         // Reset game state
         newState.phase = 'preflop';
         newState.pot = 0;
         newState.sidePots = [];
         newState.communityCards = [];
         newState.currentPlayer = null;
-        newState.lastAction = null;
-        newState.actionStartTime = null;
+        newState.lastAction = undefined;
+        newState.actionStartTime = undefined;
         newState.round++;
-        
+
         return newState;
     }
 }

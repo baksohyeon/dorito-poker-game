@@ -83,7 +83,7 @@ export class GameManager {
                 chips: newGameState.players.get(action.playerId)?.chips,
                 currentBet: newGameState.players.get(action.playerId)?.currentBet,
                 totalBet: newGameState.players.get(action.playerId)?.totalBet,
-                status: this.getPlayerStatus(newGameState.players.get(action.playerId)?.status),
+                status: this.getPlayerStatus(newGameState.players.get(action.playerId)?.status || 'active'),
                 hasActed: newGameState.players.get(action.playerId)?.hasActed,
                 lastAction: this.getLastAction(action.type)
             });
@@ -124,7 +124,7 @@ export class GameManager {
                 status: 'IN_PROGRESS',
                 startedAt: new Date(),
                 currentPhase: 'PREFLOP',
-                currentPlayerId: newGameState.currentPlayer,
+                currentPlayerId: newGameState.currentPlayer || '',
                 dealerPosition: newGameState.dealerPosition,
                 smallBlindPos: newGameState.smallBlindPosition,
                 bigBlindPos: newGameState.bigBlindPosition,

@@ -1,9 +1,9 @@
 
 // apps/dedicated-server/src/game/deck.ts
-import { Card } from '@poker-game/shared/types';
-import { GAME_CONSTANTS } from '@poker-game/shared/constants';
-import { CryptoHelper } from '@poker-game/shared/utils';
-import { IDeck } from '@poker-game/shared/interfaces';
+import { Card } from '@poker-game/shared';
+import { GAME_CONSTANTS } from '@poker-game/shared';
+import { CryptoHelper } from '@poker-game/shared';
+import { IDeck } from '@poker-game/shared';
 
 export class Deck implements IDeck {
     private cards: Card[] = [];

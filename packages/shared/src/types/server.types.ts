@@ -30,4 +30,6 @@ export interface DedicatedServerConfig {
   masterServerUrl: string;
   redisUrl: string;
   port: number;
+  host: string;
+  region: string;
 }
