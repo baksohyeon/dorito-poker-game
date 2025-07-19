@@ -1,0 +1,306 @@
+
+// apps/master-server/src/services/player-matching.service.ts
+import { logger } from '@poker-game/logger';
+import { databaseService } from '@poker-game/database';
+import { ServerManager } from './server-manager.service';
+import { TableConfig, ServerInfo } from '@poker-game/shared/types';
+import axios from 'axios';
+
+export interface MatchingCriteria {
+    gameType?: 'texas-holdem' | 'omaha';
+    blindRange?: { min: number; max: number };
+    maxPlayers?: number;
+    isPrivate?: boolean;
+    region?: string;
+}
+
+export interface MatchingResult {
+    success: boolean;
+    tableId?: string;
+    serverId?: string;
+    serverEndpoint?: string;
+    error?: string;
+}
+
+export class PlayerMatchingService {
+    private activeMatching: Map<string, Promise<MatchingResult>> = new Map();
+    private playerCounts: Map<string, number> = new Map(); // serverId -> player count
+
+    constructor(private serverManager: ServerManager) { }
+
+    async findTableForPlayer(playerId: string, criteria: MatchingCriteria = {}): Promise<MatchingResult> {
+        // Prevent duplicate matching for same player
+        if (this.activeMatching.has(playerId)) {
+            return this.activeMatching.get(playerId)!;
+        }
+
+        const matchingPromise = this.performMatching(playerId, criteria);
+        this.activeMatching.set(playerId, matchingPromise);
+
+        try {
+            const result = await matchingPromise;
+            return result;
+        } finally {
+            this.activeMatching.delete(playerId);
+        }
+    }
+
+    private async performMatching(playerId: string, criteria: MatchingCriteria): Promise<MatchingResult> {
+        try {
+            logger.info(`Finding table for player ${playerId}`, criteria);
+
+            // 1. First, try to find existing tables with available seats
+            const existingTable = await this.findAvailableTable(criteria);
+            if (existingTable) {
+                return {
+                    success: true,
+                    tableId: existingTable.tableId,
+                    serverId: existingTable.serverId,
+                    serverEndpoint: `http://${existingTable.serverHost}:${existingTable.serverPort}`
+                };
+            }
+
+            // 2. If no existing table, create a new one
+            const newTable = await this.createNewTable(criteria);
+            if (newTable) {
+                return {
+                    success: true,
+                    tableId: newTable.tableId,
+                    serverId: newTable.serverId,
+                    serverEndpoint: `http://${newTable.serverHost}:${newTable.serverPort}`
+                };
+            }
+
+            return {
+                success: false,
+                error: 'No available servers to create table'
+            };
+
+        } catch (error) {
+            logger.error(`Matching failed for player ${playerId}:`, error);
+            return {
+                success: false,
+                error: 'Internal matching error'
+            };
+        }
+    }
+
+    private async findAvailableTable(criteria: MatchingCriteria): Promise<{
+        tableId: string;
+        serverId: string;
+        serverHost: string;
+        serverPort: number;
+    } | null> {
+        // Search for available tables in database
+        const tables = await databaseService.tables.findAvailableTables({
+            gameType: criteria.gameType,
+            maxBuyIn: criteria.blindRange?.max ? criteria.blindRange.max * 100 : undefined,
+            minBuyIn: criteria.blindRange?.min ? criteria.blindRange.min * 100 : undefined
+        });
+
+        for (const table of tables) {
+            // Check if table has available seats
+            const currentGame = table.games?.[0];
+            const currentPlayers = currentGame?.participants?.length || 0;
+
+            if (currentPlayers < table.maxPlayers) {
+                // Get server info
+                const server = this.serverManager.getServerById(table.serverId);
+                if (server && server.status === 'online') {
+                    return {
+                        tableId: table.id,
+                        serverId: table.serverId,
+                        serverHost: server.host,
+                        serverPort: server.port
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async createNewTable(criteria: MatchingCriteria): Promise<{
+        tableId: string;
+        serverId: string;
+        serverHost: string;
+        serverPort: number;
+    } | null> {
+        // Find best server for new table
+        const server = this.serverManager.findBestServer({
+            type: 'dedicated',
+            region: criteria.region
+        });
+
+        if (!server) {
+            logger.warn('No available dedicated servers for new table');
+            return null;
+        }
+
+        try {
+            // Create table config
+            const tableConfig: TableConfig = {
+                id: '', // Will be generated by dedicated server
+                name: `Table ${Date.now()}`,
+                maxPlayers: criteria.maxPlayers || 9,
+                minPlayers: 2,
+                blinds: {
+                    small: criteria.blindRange?.min || 10,
+                    big: criteria.blindRange?.max || 20
+                },
+                buyIn: {
+                    min: (criteria.blindRange?.min || 10) * 20,
+                    max: (criteria.blindRange?.max || 20) * 100
+                },
+                gameType: criteria.gameType || 'texas-holdem',
+                isPrivate: criteria.isPrivate || false,
+                timeLimit: 30
+            };
+
+            // Request table creation from dedicated server
+            const response = await axios.post(
+                `http://${server.host}:${server.port}/tables`,
+                tableConfig,
+                { timeout: 5000 }
+            );
+
+            if (response.data.success) {
+                const table = response.data.table;
+
+                logger.info(`New table created: ${table.id} on server ${server.id}`);
+
+                return {
+                    tableId: table.id,
+                    serverId: server.id,
+                    serverHost: server.host,
+                    serverPort: server.port
+                };
+            }
+
+            throw new Error('Table creation failed');
+
+        } catch (error) {
+            logger.error(`Failed to create table on server ${server.id}:`, error);
+            return null;
+        }
+    }
+
+    async joinPlayerToTable(playerId: string, tableId: string): Promise<{
+        success: boolean;
+        serverEndpoint?: string;
+        error?: string;
+    }> {
+        try {
+            // Get table info from database
+            const table = await databaseService.tables.findById(tableId);
+            if (!table) {
+                return { success: false, error: 'Table not found' };
+            }
+
+            // Get server info
+            const server = this.serverManager.getServerById(table.serverId);
+            if (!server || server.status !== 'online') {
+                return { success: false, error: 'Server not available' };
+            }
+
+            // Check if player has enough chips
+            const user = await databaseService.users.findById(playerId);
+            if (!user) {
+                return { success: false, error: 'Player not found' };
+            }
+
+            if (user.chips < table.buyInMin) {
+                return { success: false, error: 'Insufficient chips' };
+            }
+
+            return {
+                success: true,
+                serverEndpoint: `http://${server.host}:${server.port}`
+            };
+
+        } catch (error) {
+            logger.error(`Failed to join player ${playerId} to table ${tableId}:`, error);
+            return { success: false, error: 'Internal error' };
+        }
+    }
+
+    async getAvailableTables(criteria: MatchingCriteria = {}, page: number = 1, limit: number = 20): Promise<{
+        tables: any[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }> {
+        try {
+            const result = await databaseService.tables.searchTables({
+                gameType: criteria.gameType,
+                isPrivate: criteria.isPrivate,
+                maxPlayers: criteria.maxPlayers,
+                blindRange: criteria.blindRange
+            }, { page, limit });
+
+            // Enrich tables with server info and current player counts
+            const enrichedTables = await Promise.all(
+                result.data.map(async (table) => {
+                    const server = this.serverManager.getServerById(table.serverId);
+                    const currentGame = table.games?.[0];
+                    const currentPlayers = currentGame?.participants?.length || 0;
+
+                    return {
+                        id: table.id,
+                        name: table.name,
+                        gameType: table.gameType,
+                        maxPlayers: table.maxPlayers,
+                        currentPlayers,
+                        blinds: {
+                            small: table.smallBlind,
+                            big: table.bigBlind
+                        },
+                        buyIn: {
+                            min: table.buyInMin,
+                            max: table.buyInMax
+                        },
+                        isPrivate: table.isPrivate,
+                        serverStatus: server?.status || 'offline',
+                        region: server?.region
+                    };
+                })
+            );
+
+            return {
+                tables: enrichedTables,
+                total: result.total,
+                page: result.page,
+                totalPages: result.totalPages
+            };
+
+        } catch (error) {
+            logger.error('Failed to get available tables:', error);
+            return {
+                tables: [],
+                total: 0,
+                page,
+                totalPages: 0
+            };
+        }
+    }
+
+    getActivePlayerCount(): number {
+        return Array.from(this.playerCounts.values()).reduce((sum, count) => sum + count, 0);
+    }
+
+    updatePlayerCount(serverId: string, count: number): void {
+        this.playerCounts.set(serverId, count);
+    }
+
+    getPlayerStats(): {
+        totalActivePlayers: number;
+        activeMatching: number;
+        playersByServer: Record<string, number>;
+    } {
+        return {
+            totalActivePlayers: this.getActivePlayerCount(),
+            activeMatching: this.activeMatching.size,
+            playersByServer: Object.fromEntries(this.playerCounts)
+        };
+    }
+}
