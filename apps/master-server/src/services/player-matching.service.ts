@@ -100,7 +100,7 @@ export class PlayerMatchingService {
 
         for (const table of tables) {
             // Check if table has available seats
-            const currentGame = table.games?.[0];
+            const currentGame = (table as any).games?.[0];
             const currentPlayers = currentGame?.participants?.length || 0;
 
             if (currentPlayers < table.maxPlayers) {
@@ -242,7 +242,7 @@ export class PlayerMatchingService {
             const enrichedTables = await Promise.all(
                 result.data.map(async (table) => {
                     const server = this.serverManager.getServerById(table.serverId);
-                    const currentGame = table.games?.[0];
+                    const currentGame = (table as any).games?.[0];
                     const currentPlayers = currentGame?.participants?.length || 0;
 
                     return {

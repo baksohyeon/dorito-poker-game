@@ -7,7 +7,9 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/master-server",
+    "apps/dedicated-server",
+    "apps/ai-server"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -21,11 +23,19 @@
     "docker:build": "./tools/scripts/docker-build.sh",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "setup": "npm install && npm run build",
-    "start:master": "npm run dev --workspace=apps/master-server",
+    "setup": "./setup.sh",
+    "start": "./scripts/start-dev.sh",
+    "start:dev": "./scripts/start-dev.sh",
+    "start:prod": "./scripts/start-production.sh",
+    "start:master": "./scripts/start-master.sh",
     "start:dedicated": "npm run dev --workspace=apps/dedicated-server",
     "start:ai": "npm run dev --workspace=apps/ai-server",
-    "start:client": "npm run dev --workspace=apps/web-client"
+    "start:client": "npm run dev --workspace=apps/web-client",
+    "db:setup": "cd packages/database && npx prisma db push && npx prisma generate",
+    "db:studio": "cd packages/database && npx prisma studio",
+    "db:reset": "cd packages/database && npx prisma db push --force-reset",
+    "logs": "docker compose logs -f",
+    "stop": "docker compose down"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

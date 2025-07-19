@@ -368,7 +368,7 @@ class TableRepository extends BaseRepository<Table> {
     const activeTables = tables.filter(t => t.status === 'ACTIVE').length;
 
     const totalPlayers = tables.reduce((sum, table) => {
-      const currentGame = table.games?.[0]; // Current active game
+      const currentGame = (table as any).games?.[0]; // Current active game
       return sum + (currentGame?.participants?.length || 0);
     }, 0);
 

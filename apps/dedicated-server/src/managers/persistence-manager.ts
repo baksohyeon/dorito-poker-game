@@ -2,7 +2,7 @@
 import { GameState, Table, PlayerState } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
-import Redis from 'redis';
+import { createClient } from 'redis';
 
 interface GameSnapshot {
     gameState: GameState;
@@ -37,8 +37,8 @@ export class PersistenceManager {
 
     private async initializeRedis(redisUrl: string): Promise<void> {
         try {
-            this.redisClient = Redis.createClient({ url: redisUrl });
-            
+            this.redisClient = createClient({ url: redisUrl });
+
             this.redisClient.on('error', (error: any) => {
                 logger.error('Redis connection error:', error);
                 this.isConnected = false;
@@ -55,7 +55,7 @@ export class PersistenceManager {
             });
 
             await this.redisClient.connect();
-            
+
         } catch (error) {
             logger.error('Failed to initialize Redis:', error);
             this.isConnected = false;
@@ -86,14 +86,14 @@ export class PersistenceManager {
     async saveGameState(gameState: GameState): Promise<boolean> {
         try {
             const snapshot = this.createSnapshot(gameState);
-            
+
             if (this.isConnected) {
                 // Immediate save to Redis
                 await this.saveToRedis(gameState.id, snapshot);
-                
+
                 // Also save to database for long-term persistence
                 await this.saveToDatabase(gameState, snapshot);
-                
+
                 logger.debug(`Game state saved: ${gameState.id}`);
                 return true;
             } else {
@@ -141,7 +141,7 @@ export class PersistenceManager {
 
             const key = `table:${table.id}`;
             const data = JSON.stringify(table);
-            
+
             await this.redisClient.setEx(key, 3600, data); // 1 hour TTL
             logger.debug(`Table state saved: ${table.id}`);
             return true;
@@ -160,7 +160,7 @@ export class PersistenceManager {
 
             const key = `table:${tableId}`;
             const data = await this.redisClient.get(key);
-            
+
             if (data) {
                 const table = JSON.parse(data) as Table;
                 logger.debug(`Table state loaded: ${tableId}`);
@@ -193,9 +193,9 @@ export class PersistenceManager {
                     try {
                         const snapshot: GameSnapshot = JSON.parse(data);
                         const gameId = key.split(':')[2];
-                        
+
                         const canRecover = this.canRecoverGame(snapshot);
-                        
+
                         recoveryInfo.push({
                             gameId,
                             tableId: snapshot.gameState.tableId,
@@ -221,7 +221,7 @@ export class PersistenceManager {
     async recoverGame(gameId: string): Promise<GameState | null> {
         try {
             const gameState = await this.loadGameState(gameId);
-            
+
             if (gameState) {
                 // Validate that the game can be safely recovered
                 if (this.validateGameRecovery(gameState)) {
@@ -250,7 +250,7 @@ export class PersistenceManager {
             const cutoffTime = Date.now() - (this.SNAPSHOT_RETENTION_HOURS * 60 * 60 * 1000);
             const pattern = `game:snapshot:*`;
             const keys = await this.redisClient.keys(pattern);
-            
+
             let cleanedCount = 0;
 
             for (const key of keys) {
@@ -294,7 +294,7 @@ export class PersistenceManager {
     private createSnapshot(gameState: GameState): GameSnapshot {
         const serialized = JSON.stringify(gameState);
         const checksum = this.calculateChecksum(serialized);
-        
+
         return {
             gameState,
             timestamp: Date.now(),
@@ -306,7 +306,7 @@ export class PersistenceManager {
     private async saveToRedis(gameId: string, snapshot: GameSnapshot): Promise<void> {
         const key = `game:snapshot:${gameId}`;
         const data = JSON.stringify(snapshot);
-        
+
         // Set with TTL
         const ttl = this.SNAPSHOT_RETENTION_HOURS * 60 * 60; // Convert to seconds
         await this.redisClient.setEx(key, ttl, data);
@@ -335,11 +335,11 @@ export class PersistenceManager {
     private async loadFromRedis(gameId: string): Promise<GameSnapshot | null> {
         const key = `game:snapshot:${gameId}`;
         const data = await this.redisClient.get(key);
-        
+
         if (data) {
             return JSON.parse(data) as GameSnapshot;
         }
-        
+
         return null;
     }
 
@@ -409,7 +409,7 @@ export class PersistenceManager {
     private canRecoverGame(snapshot: GameSnapshot): boolean {
         const age = Date.now() - snapshot.timestamp;
         const maxRecoverableAge = 60 * 60 * 1000; // 1 hour
-        
+
         return age < maxRecoverableAge && this.validateSnapshot(snapshot);
     }
 
@@ -459,7 +459,7 @@ export class PersistenceManager {
 
     async disconnect(): Promise<void> {
         this.stopAutoSave();
-        
+
         if (this.redisClient && this.isConnected) {
             try {
                 await this.redisClient.quit();

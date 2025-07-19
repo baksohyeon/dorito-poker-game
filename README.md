@@ -416,3 +416,134 @@ packages/shared: 공통 타입, Snowflake, Hash Ring 구현
 packages/database: Prisma 클라이언트, Repository 패턴 구현
 dedicated-server: 게임 로직, 테이블 관리, WebSocket 처리
 master-server: 플레이어 매칭, 서버 관리, API
+
+🎰 How to Start the Poker Game Services
+
+  Quick Start (Development Mode)
+
+  Prerequisites
+
+  - Node.js 18+ and npm 9+
+  - Docker and Docker Compose
+  - PostgreSQL database (via Docker)
+
+  1. Setup Database and Dependencies
+
+  # Start PostgreSQL and Redis databases
+  npm run docker:up
+
+  # Install dependencies for all packages
+  npm install
+
+  # Build all packages
+  npm run build
+
+  2. Start Services
+
+  Option A: Start All Services at Once
+
+  # Start all services in development mode (parallel)
+  npm run dev
+
+  Option B: Start Individual Services
+
+  # Start Master Server (port 3001)
+  npm run start:master
+
+  # Start Dedicated Server (port 3002) 
+  npm run start:dedicated
+
+  # Start AI Server (port 3003)
+  npm run start:ai
+
+  # Start Web Client (port 3000)
+  npm run start:client
+
+  3. Service URLs
+
+  - Web Client: http://localhost:3000
+  - Master Server API: http://localhost:3001
+  - Dedicated Server: http://localhost:3002
+  - AI Server: http://localhost:3003
+  - Database: localhost:5432
+  - Redis: localhost:6379
+
+  Production Mode (Docker)
+
+  Start Full Stack with Docker
+
+  # Build and start all services with Docker Compose
+  npm run docker:build
+  npm run docker:up
+
+  # Or manually:
+  docker-compose up -d
+
+  Production URLs
+
+  - Web Client: http://localhost (port 80)
+  - Master Server: http://localhost:3001
+  - Dedicated Servers: http://localhost:3002, http://localhost:3003
+  - AI Server: http://localhost:3004
+
+  Individual Service Commands
+
+  Master Server
+
+  cd apps/master-server
+  npm run dev     # Development with hot reload
+  npm run build   # Build for production
+  npm run start   # Start production build
+  npm run test    # Run tests
+
+  Dedicated Server
+
+  cd apps/dedicated-server
+  npm run dev     # Development with hot reload  
+  npm run build   # Build for production
+  npm run start   # Start production build
+
+  AI Server
+
+  cd apps/ai-server
+  npm run dev     # Development with hot reload
+  npm run build   # Build for production  
+  npm run start   # Start production build
+  npm run train-model  # Train AI models
+
+  Web Client
+
+  cd apps/web-client
+  npm run dev     # Development server (Vite)
+  npm run build   # Build for production
+  npm run start   # Preview production build
+
+  Database Management
+
+  # Setup database schema
+  cd packages/database
+  npx prisma db push
+
+  # Generate Prisma client
+  npx prisma generate
+
+  # View database in browser
+  npx prisma studio
+
+  Environment Variables
+
+  The .env file is already configured with:
+  - Database connection to Docker PostgreSQL
+  - Redis connection
+  - JWT secrets
+  - Server ports
+  - Development settings
+
+  Service Architecture
+
+  1. Master Server - Player matching, authentication, server management
+  2. Dedicated Servers - Handle individual poker games/tables
+  3. AI Server - Provides poker strategy analysis and recommendations
+  4. Web Client - React frontend for players
+  5. PostgreSQL - Game data, users, sessions
+  6. Redis - Real-time data, caching, pub/sub

@@ -1,0 +1,17 @@
+
+> @poker-game/web-client@1.0.0 build
+> tsc && vite build
+
+vite v5.4.19 building for production...
+✓ 0 modules transformed.
+x Build failed in 5ms
+error during build:
+Could not resolve entry module "index.html".
+    at getRollupError (file:///Users/dorito/games/pokerlulu/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///Users/dorito/games/pokerlulu/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.loadEntryModule (file:///Users/dorito/games/pokerlulu/node_modules/rollup/dist/es/shared/node-entry.js:21463:20)
+    at async Promise.all (index 0)
+npm error Lifecycle script `build` failed with error:
+npm error Error: command failed
+npm error   in workspace: @poker-game/web-client@1.0.0
+npm error   at location: /Users/dorito/games/pokerlulu/apps/web-client
