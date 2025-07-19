@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-poker-dark-900 text-white font-sans;
+  }
+
+  input, button, select, textarea {
+    @apply focus:outline-none focus:ring-2 focus:ring-poker-green-500;
+  }
+}
+
+@layer components {
+  .poker-card {
+    @apply relative w-12 h-16 bg-white border border-gray-300 rounded-md shadow-card;
+    @apply flex items-center justify-center text-lg font-bold;
+    @apply transition-all duration-300 hover:scale-105;
+  }
+
+  .poker-card-back {
+    @apply bg-gradient-to-br from-blue-600 to-blue-800;
+    @apply border-blue-700;
+  }
+
+  .poker-chip {
+    @apply relative w-8 h-8 rounded-full shadow-chip;
+    @apply flex items-center justify-center text-xs font-bold text-white;
+    @apply transition-all duration-300 hover:scale-110;
+  }
+
+  .poker-button {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .poker-button-primary {
+    @apply bg-poker-green-600 hover:bg-poker-green-700 text-white;
+    @apply focus:ring-poker-green-500;
+  }
+
+  .poker-button-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white;
+    @apply focus:ring-gray-500;
+  }
+
+  .poker-button-danger {
+    @apply bg-poker-red-600 hover:bg-poker-red-700 text-white;
+    @apply focus:ring-poker-red-500;
+  }
+
+  .poker-table {
+    @apply relative bg-gradient-to-br from-poker-green-700 to-poker-green-800;
+    @apply border-4 border-poker-green-600 rounded-full shadow-table;
+  }
+
+  .poker-seat {
+    @apply absolute flex flex-col items-center justify-center;
+    @apply w-20 h-20 -translate-x-1/2 -translate-y-1/2;
+  }
+
+  .poker-input {
+    @apply bg-poker-dark-800 border border-gray-600 rounded-lg px-3 py-2;
+    @apply text-white placeholder-gray-400;
+    @apply focus:border-poker-green-500 focus:ring-poker-green-500;
+  }
+
+  .loading-spinner {
+    @apply animate-spin rounded-full border-2 border-gray-600 border-t-poker-green-500;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .card-suit-red {
+    @apply text-card-red;
+  }
+
+  .card-suit-black {
+    @apply text-card-black;
+  }
+} 

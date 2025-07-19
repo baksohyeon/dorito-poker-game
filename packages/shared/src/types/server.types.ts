@@ -1,4 +1,4 @@
-import { GameState, Card } from './game.types';
+// import { GameState, Card } from './game.types';
 
 export interface ServerInfo {
   id: string;

@@ -8,7 +8,7 @@ import {
   ScheduledTournament,
   BlindLevel,
 } from '../types/tournament.types';
-import { Player } from '../types/player.types';
+// import { Player } from '../types/player.types';
 
 export interface ITournamentManager {
   // Tournament lifecycle

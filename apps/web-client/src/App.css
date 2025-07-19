@@ -1,0 +1,470 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App-specific styles */
+.app {
+  min-height: 100vh;
+  background: #0f0f0f;
+}
+
+.authenticated-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+}
+
+.main-content {
+  flex: 1;
+  min-height: calc(100vh - 4rem); /* Account for navbar height */
+  background: #141414;
+  transition: margin-left 0.3s ease;
+}
+
+.main-content.with-sidebar {
+  margin-left: 0;
+}
+
+.main-content.full-width {
+  margin-left: 0;
+}
+
+/* Responsive adjustments */
+@media (min-width: 1024px) {
+  .main-content.with-sidebar {
+    margin-left: 256px; /* Sidebar width */
+  }
+}
+
+.unauthenticated-app {
+  min-height: 100vh;
+}
+
+/* Custom animations */
+@keyframes shrink-width {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-shrink-width {
+  animation: shrink-width var(--duration, 3s) linear forwards;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Focus styles */
+.focus\:ring-poker-accent-500:focus {
+  --tw-ring-color: #d97706;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+/* Hover transitions */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-colors {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.transition-transform {
+  transition: transform 0.2s ease;
+}
+
+/* Loading animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Card and chip animations */
+@keyframes card-deal {
+  from {
+    transform: translateY(-100px) rotate(-10deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-card-deal {
+  animation: card-deal 0.5s ease-out;
+}
+
+@keyframes chip-stack {
+  from {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-chip-stack {
+  animation: chip-stack 0.3s ease-out;
+}
+
+/* Table felt texture */
+.table-felt {
+  background: radial-gradient(ellipse at center, #1a4d3a 0%, #0d2818 100%);
+  background-size: 100% 100%;
+}
+
+.table-felt::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* Poker chip styles */
+.poker-chip {
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.2),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.poker-chip::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  right: 10%;
+  bottom: 10%;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+}
+
+/* Playing card styles */
+.playing-card {
+  aspect-ratio: 2.5 / 3.5;
+  border-radius: 8px;
+  background: #f8f9fa;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.24);
+  position: relative;
+  overflow: hidden;
+}
+
+.playing-card.face-down {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+}
+
+.playing-card.face-down::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 0px,
+    rgba(255, 255, 255, 0.1) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+/* Button styles */
+.btn-poker {
+  @apply bg-poker-accent-600 hover:bg-poker-accent-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-poker:disabled {
+  @apply bg-poker-accent-800 cursor-not-allowed;
+}
+
+.btn-poker-secondary {
+  @apply bg-poker-dark-600 hover:bg-poker-dark-500 text-white border border-poker-accent-600;
+}
+
+/* Form styles */
+.form-input {
+  @apply bg-poker-dark-600 border border-poker-accent-600 rounded-lg text-white placeholder-poker-accent-400 focus:ring-2 focus:ring-poker-accent-500 focus:border-poker-accent-500 transition-colors;
+}
+
+/* Modal styles */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* Notification styles */
+.notification-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.notification-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.notification-exit {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.notification-exit-active {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .bg-poker-dark-700 {
+    background-color: #000000;
+    border: 2px solid #ffffff;
+  }
+  
+  .text-poker-accent-300 {
+    color: #ffffff;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode support (system preference) */
+@media (prefers-color-scheme: dark) {
+  /* Already using dark theme, but could add additional adjustments */
+}
+
+/* Poker-specific component styles */
+.poker-table-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.poker-table-container .table-felt {
+  min-height: 600px;
+}
+
+/* Card animation improvements */
+@keyframes dealCard {
+  0% {
+    transform: translateY(-200px) rotateZ(-10deg) scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(10px) rotateZ(2deg) scale(1.05);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(0) rotateZ(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes chipAnimation {
+  0% {
+    transform: scale(0) rotateZ(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotateZ(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) rotateZ(360deg);
+    opacity: 1;
+  }
+}
+
+@keyframes potWin {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.3);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.animate-deal-card {
+  animation: dealCard 0.8s ease-out forwards;
+}
+
+.animate-chip {
+  animation: chipAnimation 0.6s ease-out forwards;
+}
+
+.animate-pot-win {
+  animation: potWin 1s ease-in-out infinite;
+}
+
+/* Player action highlight */
+.player-action-highlight {
+  animation: actionHighlight 2s ease-in-out;
+}
+
+@keyframes actionHighlight {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(217, 119, 6, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(217, 119, 6, 0.8);
+  }
+}
+
+/* Chat scrollbar styling */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #212529;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #495057;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #6c757d;
+}
+
+/* Table position calculations */
+.table-position {
+  position: absolute;
+  transition: all 0.5s ease-in-out;
+}
+
+/* Mobile responsive poker table */
+@media (max-width: 768px) {
+  .poker-table-container .table-felt {
+    min-height: 500px;
+  }
+  
+  .main-content {
+    padding: 0;
+  }
+  
+  .playing-card {
+    width: 30px !important;
+    height: 42px !important;
+    font-size: 10px !important;
+  }
+  
+  .poker-chip {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* Tablet responsive adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .poker-table-container .table-felt {
+    min-height: 550px;
+  }
+  
+  .playing-card {
+    width: 40px !important;
+    height: 56px !important;
+    font-size: 12px !important;
+  }
+}
