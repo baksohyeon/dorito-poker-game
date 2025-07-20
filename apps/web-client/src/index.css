@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --poker-green: #10B981;
+    --brown-600: #92400E;
+  }
+}
+
+@layer components {
+  .poker-green {
+    color: var(--poker-green);
+  }
+  
+  .bg-poker-green {
+    background-color: var(--poker-green);
+  }
+  
+  .border-poker-green {
+    border-color: var(--poker-green);
+  }
+  
+  .border-brown-600 {
+    border-color: var(--brown-600);
+  }
+  
+  .focus\:ring-poker-green:focus {
+    --tw-ring-color: var(--poker-green);
+  }
+  
+  .hover\:bg-green-700:hover {
+    background-color: #047857;
+  }
+  
+  .hover\:text-green-700:hover {
+    color: #047857;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Card animations */
+@keyframes dealCard {
+  from {
+    transform: translateY(-100px) rotate(180deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-deal {
+  animation: dealCard 0.5s ease-out;
+}
+
+/* Chip animations */
+@keyframes chipFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(180deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+.animate-chip-flip {
+  animation: chipFlip 0.6s ease-in-out;
+} 
