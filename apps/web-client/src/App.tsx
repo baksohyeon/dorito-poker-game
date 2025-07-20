@@ -9,6 +9,7 @@ import { socketService } from './services/socketService';
 import LandingPage from './pages/LandingPage';
 import SimpleLobbyPage from './pages/SimpleLobbyPage';
 import TablePage from './pages/TablePage';
+import StatsPage from './pages/StatsPage';
 
 // Components
 import Header from './components/layout/Header';
@@ -51,6 +52,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/lobby" element={<SimpleLobbyPage />} />
             <Route path="/table/:tableId" element={<TablePage />} />
+            <Route path="/statistics" element={<StatsPage />} />
             
             {/* Redirect to lobby by default */}
             <Route path="*" element={<Navigate to="/lobby" replace />} />

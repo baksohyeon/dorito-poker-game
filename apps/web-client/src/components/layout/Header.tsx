@@ -146,7 +146,7 @@ const Header: React.FC = () => {
               `}
             >
               <BarChart3 className="w-4 h-4" />
-              <span>Stats</span>
+              <span>Statistics</span>
             </Link>
           </nav>
 
