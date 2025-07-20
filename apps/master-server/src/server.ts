@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { errorHandler } from './middleware/error.middleware';
@@ -12,25 +13,36 @@ import { ServerManager } from './services/server-manager.service';
 import { PlayerMatchingService } from './services/player-matching.service';
 import { AuthService } from './services/auth.service';
 import { HashRingService } from './services/hash-ring.service';
+// SocketService import removed - not needed for master server
 import { setupRoutes } from './routes';
 import { MasterServerConfig } from './config';
 
 export class MasterServer {
     private app: express.Application;
     private httpServer: any;
+    private io!: SocketIOServer;
     private serverManager!: ServerManager;
     private playerMatchingService!: PlayerMatchingService;
     private authService!: AuthService;
     private hashRingService!: HashRingService;
+    // SocketService removed - not needed for master server
     private isRunning = false;
 
     constructor(private config: MasterServerConfig) {
         this.app = express();
         this.httpServer = createServer(this.app);
+        this.io = new SocketIOServer(this.httpServer, {
+            cors: {
+                origin: this.config.corsOrigins,
+                methods: ['GET', 'POST'],
+                credentials: true
+            }
+        });
 
         this.setupServices();
         this.setupMiddleware();
         this.setupRoutes();
+        this.setupSocketHandlers();
         this.setupErrorHandling();
     }
 
@@ -41,6 +53,10 @@ export class MasterServer {
         this.authService = new AuthService();
     }
 
+    private setupSocketHandlers(): void {
+        // Socket handlers removed - not needed for master server
+    }
+
     private setupMiddleware(): void {
         // Security middleware
         this.app.use(helmet());
@@ -49,15 +65,7 @@ export class MasterServer {
             credentials: true
         }));
 
-        // Rate limiting
-        const limiter = rateLimit({
-            windowMs: 15 * 60 * 1000, // 15 minutes
-            max: 100, // limit each IP to 100 requests per windowMs
-            message: 'Too many requests from this IP, please try again later.',
-            standardHeaders: true,
-            legacyHeaders: false,
-        });
-        this.app.use('/api/', limiter);
+        // Rate limiting removed for development
 
         // Body parsing
         this.app.use(express.json({ limit: '10mb' }));

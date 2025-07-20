@@ -103,6 +103,8 @@ export class AuthService {
                 password: hashedPassword
             });
 
+            logger.info('Created user:', { id: user.id, email: user.email, username: user.username });
+
             // Generate tokens
             const token = this.generateAccessToken(user.id);
             const refreshToken = this.generateRefreshToken(user.id);
@@ -135,10 +137,10 @@ export class AuthService {
     async refreshToken(refreshToken: string): Promise<AuthResult> {
         try {
             // Verify refresh token
-            const decoded = jwt.verify(refreshToken, config.jwtSecret) as { userId: string };
+            const decoded = jwt.verify(refreshToken, config.jwtSecret) as { userId: string; sessionId: string };
 
-            // Check if session exists
-            const session = await databaseService.sessions.findBySessionId(refreshToken);
+            // Check if session exists using the sessionId from the token
+            const session = await databaseService.sessions.findBySessionId(decoded.sessionId);
             if (!session || !session.isActive) {
                 return { success: false, error: 'Invalid refresh token' };
             }
@@ -176,7 +178,9 @@ export class AuthService {
 
     async logout(refreshToken: string): Promise<{ success: boolean }> {
         try {
-            await databaseService.sessions.deactivateSession(refreshToken);
+            // Decode the refresh token to get the sessionId
+            const decoded = jwt.verify(refreshToken, config.jwtSecret) as { sessionId: string };
+            await databaseService.sessions.deactivateSession(decoded.sessionId);
             return { success: true };
         } catch (error) {
             logger.error('Logout failed:', error);
@@ -250,12 +254,14 @@ export class AuthService {
     }
 
     private generateRefreshToken(userId: string): string {
+        const sessionId = CryptoHelper.generateSessionId();
         const payload = {
             userId,
             type: 'refresh',
-            sessionId: CryptoHelper.generateSessionId(),
-            iat: Math.floor(Date.now() / 1000)
+            sessionId
         };
+
+        logger.info('Generating refresh token for user:', { userId, sessionId, payload });
 
         return jwt.sign(payload, config.jwtSecret, {
             expiresIn: '7d' // Refresh tokens last 7 days

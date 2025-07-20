@@ -25,22 +25,22 @@ class TableService {
 
     async getAvailableTables(): Promise<TableInfo[]> {
         const response = await this.client.get('/');
-        return response.data.tables;
+        return response.data.data || []; // Handle the actual API response structure
     }
 
     async getTable(tableId: string): Promise<Table> {
         const response = await this.client.get(`/${tableId}`);
-        return response.data.table;
+        return response.data.data;
     }
 
     async createTable(config: TableConfig): Promise<Table> {
         const response = await this.client.post('/', { config });
-        return response.data.table;
+        return response.data.data;
     }
 
     async joinTable(tableId: string, seatNumber?: number): Promise<Table> {
         const response = await this.client.post(`/${tableId}/join`, { seatNumber });
-        return response.data.table;
+        return response.data.data;
     }
 
     async leaveTable(tableId: string): Promise<void> {
@@ -64,7 +64,7 @@ class TableService {
 
     async updateTableSettings(tableId: string, settings: Partial<TableConfig>): Promise<Table> {
         const response = await this.client.put(`/${tableId}/settings`, settings);
-        return response.data.table;
+        return response.data.data;
     }
 }
 

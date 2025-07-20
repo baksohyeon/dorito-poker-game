@@ -3,13 +3,14 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from './store';
 import { initializeSettings, setIsMobile } from './store/slices/uiSlice';
+import { refreshAccessToken } from './store/slices/authSlice';
 import { socketService } from './services/socketService';
 
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import LobbyPage from './pages/LobbyPage';
+import SimpleLobbyPage from './pages/SimpleLobbyPage';
 import TablePage from './pages/TablePage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -27,6 +28,16 @@ function App() {
   useEffect(() => {
     // Initialize settings
     dispatch(initializeSettings());
+    
+    // Initialize authentication state from localStorage
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    if (accessToken && refreshToken) {
+      // Try to refresh the token to validate it's still valid
+      // This will also restore user data if successful
+      dispatch(refreshAccessToken(refreshToken));
+    }
 
     // Handle window resize
     const handleResize = () => {
@@ -63,7 +74,7 @@ function App() {
             
             <Route path="/lobby" element={
               <ProtectedRoute>
-                <LobbyPage />
+                <SimpleLobbyPage />
               </ProtectedRoute>
             } />
             

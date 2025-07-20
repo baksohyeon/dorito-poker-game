@@ -34,9 +34,9 @@ class AuthService {
                     if (refreshToken) {
                         try {
                             const response = await this.refreshToken(refreshToken);
-                            if (response.success && response.tokens) {
-                                localStorage.setItem('accessToken', response.tokens.accessToken);
-                                originalRequest.headers.Authorization = `Bearer ${response.tokens.accessToken}`;
+                            if (response.success && response.data) {
+                                localStorage.setItem('accessToken', response.data.token);
+                                originalRequest.headers.Authorization = `Bearer ${response.data.token}`;
                                 return this.client(originalRequest);
                             }
                         } catch (refreshError) {

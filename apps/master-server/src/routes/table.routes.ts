@@ -13,8 +13,45 @@ export function tableRoutes(_services: any) {
     router.get('/', async (req, res) => {
         try {
             // TODO: Implement table listing from server manager
-            // const { type, status, limit = 50 } = req.query;
-            const tables: any[] = [];
+            // For now, return mock tables for development
+            const tables = [
+                {
+                    id: 'table-1',
+                    name: 'Texas Hold\'em - Beginner',
+                    gameType: 'texas-holdem',
+                    blinds: { small: 1, big: 2 },
+                    maxPlayers: 9,
+                    playerCount: 3,
+                    status: 'active',
+                    isPrivate: false,
+                    averagePot: 45,
+                    handsPerHour: 85
+                },
+                {
+                    id: 'table-2', 
+                    name: 'Texas Hold\'em - Intermediate',
+                    gameType: 'texas-holdem',
+                    blinds: { small: 5, big: 10 },
+                    maxPlayers: 9,
+                    playerCount: 6,
+                    status: 'active',
+                    isPrivate: false,
+                    averagePot: 120,
+                    handsPerHour: 78
+                },
+                {
+                    id: 'table-3',
+                    name: 'High Stakes',
+                    gameType: 'texas-holdem', 
+                    blinds: { small: 25, big: 50 },
+                    maxPlayers: 6,
+                    playerCount: 2,
+                    status: 'active',
+                    isPrivate: false,
+                    averagePot: 500,
+                    handsPerHour: 72
+                }
+            ];
 
             res.json({
                 success: true,

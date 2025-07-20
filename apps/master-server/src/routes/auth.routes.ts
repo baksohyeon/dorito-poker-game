@@ -126,5 +126,90 @@ export function authRoutes({ authService }: { authService: AuthService }) {
         }
     });
 
+    // GET /api/auth/profile (requires auth middleware)
+    router.get('/profile', async (req, res) => {
+        try {
+            // TODO: Add auth middleware to extract userId
+            res.status(501).json({
+                success: false,
+                error: 'Profile endpoint not implemented'
+            });
+        } catch (error) {
+            logger.error('Profile route error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    });
+
+    // PUT /api/auth/profile (requires auth middleware)
+    router.put('/profile', async (req, res) => {
+        try {
+            // TODO: Add auth middleware and profile update logic
+            res.status(501).json({
+                success: false,
+                error: 'Profile update endpoint not implemented'
+            });
+        } catch (error) {
+            logger.error('Profile update route error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    });
+
+    // PUT /api/auth/password (requires auth middleware)
+    router.put('/password', async (req, res) => {
+        try {
+            // TODO: Add auth middleware and password change logic
+            res.status(501).json({
+                success: false,
+                error: 'Password change endpoint not implemented'
+            });
+        } catch (error) {
+            logger.error('Password change route error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    });
+
+    // POST /api/auth/password-reset
+    router.post('/password-reset', async (req, res) => {
+        try {
+            // TODO: Implement password reset logic
+            res.status(501).json({
+                success: false,
+                error: 'Password reset endpoint not implemented'
+            });
+        } catch (error) {
+            logger.error('Password reset route error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    });
+
+    // POST /api/auth/verify-email
+    router.post('/verify-email', async (req, res) => {
+        try {
+            // TODO: Implement email verification logic
+            res.status(501).json({
+                success: false,
+                error: 'Email verification endpoint not implemented'
+            });
+        } catch (error) {
+            logger.error('Email verification route error:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    });
+
     return router;
 }

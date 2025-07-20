@@ -1,6 +1,17 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { AuthUser, AuthResponse, AuthRequest, RegistrationRequest } from '@shared/types/auth.types';
+import { AuthUser, AuthRequest, RegistrationRequest } from '@shared/types/auth.types';
 import { authService } from '../../services/authService';
+
+// API Response types that match the actual server response
+interface ApiAuthResponse {
+    success: boolean;
+    data?: {
+        token: string;
+        refreshToken: string;
+        user: AuthUser | Record<string, never>; // empty object or actual user
+    };
+    error?: string;
+}
 
 interface AuthState {
     user: AuthUser | null;
@@ -21,7 +32,7 @@ const initialState: AuthState = {
 };
 
 // Async thunks
-export const login = createAsyncThunk<AuthResponse, AuthRequest>(
+export const login = createAsyncThunk<ApiAuthResponse, AuthRequest>(
     'auth/login',
     async (credentials, { rejectWithValue }) => {
         try {
@@ -33,7 +44,7 @@ export const login = createAsyncThunk<AuthResponse, AuthRequest>(
     }
 );
 
-export const register = createAsyncThunk<AuthResponse, RegistrationRequest>(
+export const register = createAsyncThunk<ApiAuthResponse, RegistrationRequest>(
     'auth/register',
     async (userData, { rejectWithValue }) => {
         try {
@@ -55,7 +66,7 @@ export const logout = createAsyncThunk<void, void>(
     }
 );
 
-export const refreshAccessToken = createAsyncThunk<AuthResponse, string>(
+export const refreshAccessToken = createAsyncThunk<ApiAuthResponse, string>(
     'auth/refresh',
     async (refreshToken, { rejectWithValue }) => {
         try {
@@ -107,14 +118,17 @@ const authSlice = createSlice({
             })
             .addCase(login.fulfilled, (state, action) => {
                 state.loading = false;
-                if (action.payload.success && action.payload.user && action.payload.tokens) {
-                    state.user = action.payload.user;
-                    state.accessToken = action.payload.tokens.accessToken;
-                    state.refreshToken = action.payload.tokens.refreshToken;
+                if (action.payload.success && action.payload.data) {
+                    // Handle the actual API response structure  
+                    state.user = action.payload.data.user && Object.keys(action.payload.data.user).length > 0 
+                        ? action.payload.data.user as AuthUser 
+                        : null;
+                    state.accessToken = action.payload.data.token;
+                    state.refreshToken = action.payload.data.refreshToken;
                     state.isAuthenticated = true;
 
-                    localStorage.setItem('accessToken', action.payload.tokens.accessToken);
-                    localStorage.setItem('refreshToken', action.payload.tokens.refreshToken);
+                    localStorage.setItem('accessToken', action.payload.data.token);
+                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
                 }
             })
             .addCase(login.rejected, (state, action) => {
@@ -127,9 +141,18 @@ const authSlice = createSlice({
             })
             .addCase(register.fulfilled, (state, action) => {
                 state.loading = false;
-                if (action.payload.success && action.payload.user) {
-                    state.user = action.payload.user;
+                if (action.payload.success && action.payload.data) {
+                    // Handle the actual API response structure
+                    state.user = action.payload.data.user && Object.keys(action.payload.data.user).length > 0 
+                        ? action.payload.data.user as AuthUser 
+                        : null;
+                    state.accessToken = action.payload.data.token;
+                    state.refreshToken = action.payload.data.refreshToken;
                     state.isAuthenticated = true;
+                    
+                    // Store tokens in localStorage
+                    localStorage.setItem('accessToken', action.payload.data.token);
+                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
                 }
             })
             .addCase(register.rejected, (state, action) => {
@@ -147,12 +170,12 @@ const authSlice = createSlice({
                 localStorage.removeItem('refreshToken');
             })
             .addCase(refreshAccessToken.fulfilled, (state, action) => {
-                if (action.payload.success && action.payload.tokens) {
-                    state.accessToken = action.payload.tokens.accessToken;
-                    state.refreshToken = action.payload.tokens.refreshToken;
+                if (action.payload.success && action.payload.data) {
+                    state.accessToken = action.payload.data.token;
+                    state.refreshToken = action.payload.data.refreshToken;
 
-                    localStorage.setItem('accessToken', action.payload.tokens.accessToken);
-                    localStorage.setItem('refreshToken', action.payload.tokens.refreshToken);
+                    localStorage.setItem('accessToken', action.payload.data.token);
+                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
                 }
             })
             .addCase(refreshAccessToken.rejected, (state) => {
