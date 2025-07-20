@@ -9,6 +9,7 @@ import { socketService } from './services/socketService';
 import LandingPage from './pages/LandingPage';
 import SimpleLobbyPage from './pages/SimpleLobbyPage';
 import TablePage from './pages/TablePage';
+import TablesPage from './pages/TablesPage';
 import StatsPage from './pages/StatsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 
@@ -52,6 +53,7 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/lobby" element={<SimpleLobbyPage />} />
+            <Route path="/tables" element={<TablesPage />} />
             <Route path="/table/:tableId" element={<TablePage />} />
             <Route path="/statistics" element={<StatsPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />

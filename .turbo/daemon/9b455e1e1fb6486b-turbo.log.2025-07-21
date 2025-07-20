@@ -1,0 +1,18 @@
+2025-07-21T05:33:22.081868Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo/cookies/.turbo-cookie"), AnchoredSystemPathBuf(".turbo/cookies/1.cookie")}
+2025-07-21T05:33:22.081876Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-07-21T05:33:23.283169Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/vite.config.ts.timestamp-1753076003213-e78f3e28682f4.mjs")}
+2025-07-21T05:33:23.283181Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:33:24.282116Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/components/ui/modals/TableCreateModal.tsx")}
+2025-07-21T05:33:24.282128Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:33:37.282670Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/components/ui/modals/TableCreateModal.tsx")}
+2025-07-21T05:33:37.282680Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:35:36.984448Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/pages/TablePage.tsx")}
+2025-07-21T05:35:36.984455Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:35:41.084747Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/pages/TablePage.tsx")}
+2025-07-21T05:35:41.084756Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:35:44.883880Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/pages/TablePage.tsx")}
+2025-07-21T05:35:44.883888Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:35:49.684756Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/pages/TablePage.tsx")}
+2025-07-21T05:35:49.684765Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))
+2025-07-21T05:35:54.683872Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web-client/src/pages/TablePage.tsx")}
+2025-07-21T05:35:54.683883Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@poker-game/web-client"), path: AnchoredSystemPathBuf("apps/web-client") }}))

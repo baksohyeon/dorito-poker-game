@@ -5,22 +5,14 @@ import { useAppDispatch } from '../store/hooks';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
-  Users, 
-  Settings, 
   MessageCircle, 
   Volume2, 
   VolumeX,
-  Crown,
-  Timer,
-  DollarSign,
-  Shuffle,
   Eye,
-  EyeOff,
   Play,
   Pause
 } from 'lucide-react';
 import { RootState } from '../store';
-import { socketService } from '../services/socketService';
 import PlayingCard from '../components/game/PlayingCard';
 import PokerChip from '../components/game/PokerChip';
 import ActionButtons from '../components/game/ActionButtons';
@@ -331,7 +323,7 @@ const TablePage: React.FC = () => {
       actions.push('call', 'raise');
     }
 
-    if (currentPlayer.chips <= gameState?.currentBet || 0) {
+    if (currentPlayer.chips <= (gameState?.currentBet || 0)) {
       actions.push('all-in');
     }
 
@@ -426,6 +418,7 @@ const TablePage: React.FC = () => {
             </button>
             
             <button
+              title="Chat"
               onClick={() => setShowChat(!showChat)}
               className="text-gray-300 hover:text-white transition-colors"
             >
