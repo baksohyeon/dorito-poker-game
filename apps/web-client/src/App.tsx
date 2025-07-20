@@ -10,6 +10,7 @@ import LandingPage from './pages/LandingPage';
 import SimpleLobbyPage from './pages/SimpleLobbyPage';
 import TablePage from './pages/TablePage';
 import StatsPage from './pages/StatsPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 
 // Components
 import Header from './components/layout/Header';
@@ -53,6 +54,7 @@ function App() {
             <Route path="/lobby" element={<SimpleLobbyPage />} />
             <Route path="/table/:tableId" element={<TablePage />} />
             <Route path="/statistics" element={<StatsPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
             
             {/* Redirect to lobby by default */}
             <Route path="*" element={<Navigate to="/lobby" replace />} />
