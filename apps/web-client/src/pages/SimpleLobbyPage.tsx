@@ -1,17 +1,23 @@
 import React, { useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../store/hooks';
 import { RootState } from '../store';
 import { fetchTables } from '../store/slices/tableSlice';
 
 const SimpleLobbyPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { availableTables, loading, error } = useSelector((state: RootState) => state.table);
   const { user } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     dispatch(fetchTables());
   }, [dispatch]);
+
+  const handleJoinTable = (tableId: string) => {
+    navigate(`/table/${tableId}`);
+  };
 
   if (loading) {
     return (
@@ -45,7 +51,7 @@ const SimpleLobbyPage: React.FC = () => {
         
         {user && (
           <div className="mb-6 p-4 bg-poker-dark-800 rounded-lg">
-            <p className="text-lg">Welcome back! 🎰</p>
+            <p className="text-lg">Welcome, {user.username}! 🎰</p>
             <p className="text-poker-accent-300">Chips: {user.chips || 'Loading...'}</p>
           </div>
         )}
@@ -79,7 +85,10 @@ const SimpleLobbyPage: React.FC = () => {
                       <span>${table.averagePot}</span>
                     </div>
                   </div>
-                  <button className="w-full mt-4 bg-poker-accent-600 hover:bg-poker-accent-700 text-white py-2 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => handleJoinTable(table.id)}
+                    className="w-full mt-4 bg-poker-accent-600 hover:bg-poker-accent-700 text-white py-2 rounded-lg transition-colors"
+                  >
                     Join Table
                   </button>
                 </div>

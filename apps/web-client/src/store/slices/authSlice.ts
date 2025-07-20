@@ -20,63 +20,78 @@ interface AuthState {
     error: string | null;
     accessToken: string | null;
     refreshToken: string | null;
+    isGuest: boolean;
 }
 
+const generateGuestUser = (): AuthUser => ({
+    id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    username: `Guest_${Math.random().toString(36).substr(2, 6)}`,
+    email: '',
+    chips: 10000,
+    avatar: '',
+    level: 1,
+    rank: 'bronze',
+    permissions: [],
+    lastLogin: new Date(),
+    isVerified: false
+});
+
 const initialState: AuthState = {
-    user: null,
-    isAuthenticated: false,
+    user: generateGuestUser(),
+    isAuthenticated: true, // Always authenticated for guest access
     loading: false,
     error: null,
-    accessToken: localStorage.getItem('accessToken'),
-    refreshToken: localStorage.getItem('refreshToken'),
+    accessToken: null,
+    refreshToken: null,
+    isGuest: true,
 };
 
-// Async thunks
-export const login = createAsyncThunk<ApiAuthResponse, AuthRequest>(
-    'auth/login',
-    async (credentials, { rejectWithValue }) => {
-        try {
-            const response = await authService.login(credentials);
-            return response;
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.error || 'Login failed');
-        }
-    }
-);
+// Async thunks - disabled for guest access
+// export const login = createAsyncThunk<ApiAuthResponse, AuthRequest>(
+//     'auth/login',
+//     async (credentials, { rejectWithValue }) => {
+//         try {
+//             const response = await authService.login(credentials);
+//             return response;
+//         } catch (error: any) {
+//             return rejectWithValue(error.response?.data?.error || 'Login failed');
+//         }
+//     }
+// );
 
-export const register = createAsyncThunk<ApiAuthResponse, RegistrationRequest>(
-    'auth/register',
-    async (userData, { rejectWithValue }) => {
-        try {
-            const response = await authService.register(userData);
-            return response;
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.error || 'Registration failed');
-        }
-    }
-);
+// export const register = createAsyncThunk<ApiAuthResponse, RegistrationRequest>(
+//     'auth/register',
+//     async (userData, { rejectWithValue }) => {
+//         try {
+//             const response = await authService.register(userData);
+//             return response;
+//         } catch (error: any) {
+//             return rejectWithValue(error.response?.data?.error || 'Registration failed');
+//         }
+//     }
+// );
 
-export const logout = createAsyncThunk<void, void>(
-    'auth/logout',
-    async (_, { getState }) => {
-        const state = getState() as { auth: AuthState };
-        if (state.auth.refreshToken) {
-            await authService.logout(state.auth.refreshToken);
-        }
-    }
-);
+// export const logout = createAsyncThunk<void, void>(
+//     'auth/logout',
+//     async (_, { getState }) => {
+//         const state = getState() as { auth: AuthState };
+//         if (state.auth.refreshToken) {
+//             await authService.logout(state.auth.refreshToken);
+//         }
+//     }
+// );
 
-export const refreshAccessToken = createAsyncThunk<ApiAuthResponse, string>(
-    'auth/refresh',
-    async (refreshToken, { rejectWithValue }) => {
-        try {
-            const response = await authService.refreshToken(refreshToken);
-            return response;
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.error || 'Token refresh failed');
-        }
-    }
-);
+// export const refreshAccessToken = createAsyncThunk<ApiAuthResponse, string>(
+//     'auth/refresh',
+//     async (refreshToken, { rejectWithValue }) => {
+//         try {
+//             const response = await authService.refreshToken(refreshToken);
+//             return response;
+//         } catch (error: any) {
+//             return rejectWithValue(error.response?.data?.error || 'Token refresh failed');
+//         }
+//     }
+// );
 
 const authSlice = createSlice({
     name: 'auth',
@@ -109,86 +124,25 @@ const authSlice = createSlice({
                 state.user.chips = action.payload;
             }
         },
+        createGuestUser: (state) => {
+            state.user = generateGuestUser();
+            state.isAuthenticated = true;
+            state.isGuest = true;
+            state.accessToken = null;
+            state.refreshToken = null;
+        },
+        clearGuestUser: (state) => {
+            state.user = null;
+            state.isAuthenticated = false;
+            state.isGuest = false;
+            state.accessToken = null;
+            state.refreshToken = null;
+        },
     },
     extraReducers: (builder) => {
-        builder
-            .addCase(login.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(login.fulfilled, (state, action) => {
-                state.loading = false;
-                if (action.payload.success && action.payload.data) {
-                    // Handle the actual API response structure  
-                    state.user = action.payload.data.user && Object.keys(action.payload.data.user).length > 0 
-                        ? action.payload.data.user as AuthUser 
-                        : null;
-                    state.accessToken = action.payload.data.token;
-                    state.refreshToken = action.payload.data.refreshToken;
-                    state.isAuthenticated = true;
-
-                    localStorage.setItem('accessToken', action.payload.data.token);
-                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
-                }
-            })
-            .addCase(login.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload as string;
-            })
-            .addCase(register.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(register.fulfilled, (state, action) => {
-                state.loading = false;
-                if (action.payload.success && action.payload.data) {
-                    // Handle the actual API response structure
-                    state.user = action.payload.data.user && Object.keys(action.payload.data.user).length > 0 
-                        ? action.payload.data.user as AuthUser 
-                        : null;
-                    state.accessToken = action.payload.data.token;
-                    state.refreshToken = action.payload.data.refreshToken;
-                    state.isAuthenticated = true;
-                    
-                    // Store tokens in localStorage
-                    localStorage.setItem('accessToken', action.payload.data.token);
-                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
-                }
-            })
-            .addCase(register.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload as string;
-            })
-            .addCase(logout.fulfilled, (state) => {
-                state.user = null;
-                state.accessToken = null;
-                state.refreshToken = null;
-                state.isAuthenticated = false;
-                state.error = null;
-
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-            })
-            .addCase(refreshAccessToken.fulfilled, (state, action) => {
-                if (action.payload.success && action.payload.data) {
-                    state.accessToken = action.payload.data.token;
-                    state.refreshToken = action.payload.data.refreshToken;
-
-                    localStorage.setItem('accessToken', action.payload.data.token);
-                    localStorage.setItem('refreshToken', action.payload.data.refreshToken);
-                }
-            })
-            .addCase(refreshAccessToken.rejected, (state) => {
-                state.user = null;
-                state.accessToken = null;
-                state.refreshToken = null;
-                state.isAuthenticated = false;
-
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-            });
+        // No extra reducers needed for guest access
     },
 });
 
-export const { clearError, setCredentials, clearCredentials, updateUserChips } = authSlice.actions;
+export const { clearError, setCredentials, clearCredentials, updateUserChips, createGuestUser, clearGuestUser } = authSlice.actions;
 export default authSlice.reducer; 

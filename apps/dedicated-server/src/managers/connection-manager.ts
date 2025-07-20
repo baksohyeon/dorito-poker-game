@@ -91,7 +91,7 @@ export class ConnectionManager {
 
     handleConnection(socket: Socket): void {
         const clientIP = this.getClientIP(socket);
-        
+
         // Security validation
         if (this.securityManager && !this.securityManager.validateConnection(socket)) {
             socket.disconnect(true);
@@ -99,15 +99,15 @@ export class ConnectionManager {
         }
 
         // Check IP connection limits
-        if (!this.checkIPConnectionLimit(clientIP)) {
-            logger.warn(`IP connection limit exceeded: ${clientIP}`);
-            socket.emit('error', { 
-                code: 'CONNECTION_LIMIT_EXCEEDED', 
-                message: 'Too many connections from this IP' 
-            });
-            socket.disconnect(true);
-            return;
-        }
+        // if (!this.checkIPConnectionLimit(clientIP)) {
+        //     logger.warn(`IP connection limit exceeded: ${clientIP}`);
+        //     socket.emit('error', { 
+        //         code: 'CONNECTION_LIMIT_EXCEEDED', 
+        //         message: 'Too many connections from this IP' 
+        //     });
+        //     socket.disconnect(true);
+        //     return;
+        // }
 
         logger.debug(`New connection: ${socket.id} from ${clientIP}`);
 
@@ -159,9 +159,9 @@ export class ConnectionManager {
         try {
             const connection = this.connections.get(socket.id);
             if (!connection) {
-                socket.emit('error', { 
-                    code: 'CONNECTION_NOT_FOUND', 
-                    message: 'Connection not established' 
+                socket.emit('error', {
+                    code: 'CONNECTION_NOT_FOUND',
+                    message: 'Connection not established'
                 });
                 return;
             }
@@ -173,9 +173,9 @@ export class ConnectionManager {
             handler();
         } catch (error) {
             logger.error('Error in secure handler:', error);
-            socket.emit('error', { 
-                code: 'INTERNAL_ERROR', 
-                message: 'Internal server error' 
+            socket.emit('error', {
+                code: 'INTERNAL_ERROR',
+                message: 'Internal server error'
             });
         }
     }
@@ -183,9 +183,9 @@ export class ConnectionManager {
     private async handleJoinTable(socket: Socket, data: { tableId: string; position?: number }): Promise<void> {
         try {
             // Sanitize input
-            const sanitizedData = this.securityManager ? 
+            const sanitizedData = this.securityManager ?
                 this.securityManager.sanitizeInput(data) : data;
-            
+
             const connection = this.connections.get(socket.id);
             if (!connection) {
                 socket.emit('error', { code: 'PLAYER_NOT_AUTHENTICATED', message: 'Please authenticate first' });
@@ -199,8 +199,8 @@ export class ConnectionManager {
             }
 
             const result = await this.tableManager.addPlayerToTable(
-                sanitizedData.tableId, 
-                connection.playerId, 
+                sanitizedData.tableId,
+                connection.playerId,
                 sanitizedData.position
             );
 
@@ -348,7 +348,7 @@ export class ConnectionManager {
             }
 
             // Sanitize action data
-            const sanitizedAction = this.securityManager ? 
+            const sanitizedAction = this.securityManager ?
                 this.securityManager.sanitizeInput(data.action) : data.action;
 
             // Process action through game manager
@@ -415,9 +415,9 @@ export class ConnectionManager {
             }
 
             // Sanitize message
-            const sanitizedMessage = this.securityManager ? 
+            const sanitizedMessage = this.securityManager ?
                 this.securityManager.sanitizeInput(data.message) : data.message;
-            
+
             // Validate message
             if (!sanitizedMessage || sanitizedMessage.trim().length === 0) {
                 socket.emit('error', { code: 'INVALID_MESSAGE', message: 'Message cannot be empty' });
@@ -563,9 +563,9 @@ export class ConnectionManager {
     }
 
     private getClientIP(socket: Socket): string {
-        return socket.handshake.address || 
-               socket.request.connection.remoteAddress || 
-               'unknown';
+        return socket.handshake.address ||
+            socket.request.connection.remoteAddress ||
+            'unknown';
     }
 
     // Public interface methods

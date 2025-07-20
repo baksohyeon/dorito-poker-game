@@ -4,9 +4,9 @@ import { Card } from '@shared/types/game.types';
 import { Spade, Heart, Diamond, Club } from 'lucide-react';
 
 interface PlayingCardProps {
-  card?: Card;
+  card?: Card | string;
   faceDown?: boolean;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'sm' | 'lg';
   className?: string;
   onClick?: () => void;
   animationDelay?: number;
@@ -42,8 +42,10 @@ const PlayingCard: React.FC<PlayingCardProps> = ({
   const getSizeClasses = () => {
     switch (size) {
       case 'small':
+      case 'sm':
         return 'w-10 h-14 text-sm';
       case 'large':
+      case 'lg':
         return 'w-16 h-22 text-xl';
       case 'medium':
       default:
@@ -60,26 +62,42 @@ const PlayingCard: React.FC<PlayingCardProps> = ({
       );
     }
 
+    // Handle string card format (e.g., "AS", "KH")
+    let cardData: { rank: string; suit: string };
+    if (typeof card === 'string') {
+      const rank = card[0];
+      const suitCode = card[1];
+      const suitMap: { [key: string]: string } = {
+        'S': 'spades',
+        'H': 'hearts',
+        'D': 'diamonds',
+        'C': 'clubs'
+      };
+      cardData = { rank, suit: suitMap[suitCode] || 'spades' };
+    } else {
+      cardData = card;
+    }
+
     return (
       <div className="w-full h-full flex flex-col items-center justify-between p-1 bg-white text-black">
         {/* Top rank and suit */}
-        <div className={`flex flex-col items-center ${getSuitColor(card.suit)}`}>
-          <span className="text-xs font-bold leading-none">{card.rank}</span>
+        <div className={`flex flex-col items-center ${getSuitColor(cardData.suit)}`}>
+          <span className="text-xs font-bold leading-none">{cardData.rank}</span>
           <div className="w-2 h-2">
-            {getSuitIcon(card.suit)}
+            {getSuitIcon(cardData.suit)}
           </div>
         </div>
 
         {/* Center suit */}
-        <div className={`w-4 h-4 ${getSuitColor(card.suit)}`}>
-          {getSuitIcon(card.suit)}
+        <div className={`w-4 h-4 ${getSuitColor(cardData.suit)}`}>
+          {getSuitIcon(cardData.suit)}
         </div>
 
         {/* Bottom rank and suit (rotated) */}
-        <div className={`flex flex-col items-center transform rotate-180 ${getSuitColor(card.suit)}`}>
-          <span className="text-xs font-bold leading-none">{card.rank}</span>
+        <div className={`flex flex-col items-center transform rotate-180 ${getSuitColor(cardData.suit)}`}>
+          <span className="text-xs font-bold leading-none">{cardData.rank}</span>
           <div className="w-2 h-2">
-            {getSuitIcon(card.suit)}
+            {getSuitIcon(cardData.suit)}
           </div>
         </div>
       </div>

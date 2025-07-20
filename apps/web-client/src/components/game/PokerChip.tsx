@@ -2,12 +2,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 interface PokerChipProps {
-  value: number;
+  value?: number;
   count?: number;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'xs' | 'sm' | 'lg';
   className?: string;
   onClick?: () => void;
   animationDelay?: number;
+  color?: string;
 }
 
 const PokerChip: React.FC<PokerChipProps> = ({
@@ -18,7 +19,8 @@ const PokerChip: React.FC<PokerChipProps> = ({
   onClick,
   animationDelay = 0,
 }) => {
-  const getChipColor = (value: number) => {
+  const getChipColor = (value?: number) => {
+    if (!value) return 'bg-gradient-to-br from-gray-500 to-gray-700 border-gray-400';
     if (value >= 1000000) return 'bg-gradient-to-br from-purple-500 to-purple-700 border-purple-400';
     if (value >= 100000) return 'bg-gradient-to-br from-orange-500 to-orange-700 border-orange-400';
     if (value >= 25000) return 'bg-gradient-to-br from-pink-500 to-pink-700 border-pink-400';
@@ -35,16 +37,21 @@ const PokerChip: React.FC<PokerChipProps> = ({
   const getSizeClasses = () => {
     switch (size) {
       case 'small':
+      case 'sm':
         return 'w-6 h-6 text-xs';
       case 'large':
+      case 'lg':
         return 'w-12 h-12 text-lg';
+      case 'xs':
+        return 'w-4 h-4 text-xs';
       case 'medium':
       default:
         return 'w-8 h-8 text-xs';
     }
   };
 
-  const formatValue = (value: number) => {
+  const formatValue = (value?: number) => {
+    if (!value) return '';
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
     return value.toString();

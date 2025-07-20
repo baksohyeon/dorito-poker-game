@@ -15,7 +15,9 @@ import {
   DollarSign,
   Shuffle,
   Eye,
-  EyeOff
+  EyeOff,
+  Play,
+  Pause
 } from 'lucide-react';
 import { RootState } from '../store';
 import { socketService } from '../services/socketService';
@@ -39,6 +41,8 @@ interface Player {
   isBigBlind: boolean;
   isSittingOut: boolean;
   avatar?: string;
+  isAllIn: boolean;
+  hasFolded: boolean;
 }
 
 interface GameState {
@@ -56,132 +60,246 @@ interface GameState {
   maxPlayers: number;
   handNumber: number;
   isTableFull: boolean;
+  currentBet: number;
+  minRaise: number;
+  maxRaise: number;
 }
+
+// Mock game state for demonstration
+const createMockGameState = (tableId: string, currentUserId: string): GameState => ({
+  id: tableId,
+  stage: 'preflop',
+  pot: 150,
+  sidePots: [],
+  communityCards: [],
+  currentPlayer: currentUserId,
+  minimumBet: 20,
+  bigBlind: 20,
+  smallBlind: 10,
+  dealerPosition: 2,
+  players: [
+    {
+      id: currentUserId,
+      username: 'You',
+      chips: 1000,
+      position: 0,
+      isActive: true,
+      holeCards: ['AS', 'KH'],
+      currentBet: 20,
+      lastAction: 'call',
+      timeLeft: 30,
+      isDealer: false,
+      isSmallBlind: false,
+      isBigBlind: false,
+      isSittingOut: false,
+      isAllIn: false,
+      hasFolded: false
+    },
+    {
+      id: 'player-2',
+      username: 'Alice',
+      chips: 850,
+      position: 1,
+      isActive: true,
+      holeCards: ['QD', 'JC'],
+      currentBet: 20,
+      lastAction: 'call',
+      timeLeft: undefined,
+      isDealer: false,
+      isSmallBlind: true,
+      isBigBlind: false,
+      isSittingOut: false,
+      isAllIn: false,
+      hasFolded: false
+    },
+    {
+      id: 'player-3',
+      username: 'Bob',
+      chips: 1200,
+      position: 2,
+      isActive: true,
+      holeCards: ['2H', '7D'],
+      currentBet: 0,
+      lastAction: undefined,
+      timeLeft: undefined,
+      isDealer: true,
+      isSmallBlind: false,
+      isBigBlind: false,
+      isSittingOut: false,
+      isAllIn: false,
+      hasFolded: false
+    },
+    {
+      id: 'player-4',
+      username: 'Charlie',
+      chips: 750,
+      position: 3,
+      isActive: true,
+      holeCards: ['9S', '4C'],
+      currentBet: 20,
+      lastAction: 'call',
+      timeLeft: undefined,
+      isDealer: false,
+      isSmallBlind: false,
+      isBigBlind: true,
+      isSittingOut: false,
+      isAllIn: false,
+      hasFolded: false
+    },
+    {
+      id: 'player-5',
+      username: 'Diana',
+      chips: 600,
+      position: 4,
+      isActive: true,
+      holeCards: ['3D', '8H'],
+      currentBet: 0,
+      lastAction: 'fold',
+      timeLeft: undefined,
+      isDealer: false,
+      isSmallBlind: false,
+      isBigBlind: false,
+      isSittingOut: false,
+      isAllIn: false,
+      hasFolded: true
+    }
+  ],
+  maxPlayers: 9,
+  handNumber: 42,
+  isTableFull: false,
+  currentBet: 20,
+  minRaise: 20,
+  maxRaise: 1000
+});
 
 const TablePage: React.FC = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; username: string; message: string; timestamp: number }>>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; username: string; message: string; timestamp: number }>>([
+    { id: '1', username: 'Alice', message: 'Good luck everyone!', timestamp: Date.now() - 5000 },
+    { id: '2', username: 'Bob', message: 'Let\'s play some poker!', timestamp: Date.now() - 3000 },
+    { id: '3', username: 'Charlie', message: 'Nice hand!', timestamp: Date.now() - 1000 }
+  ]);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [spectatorMode, setSpectatorMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gamePaused, setGamePaused] = useState(false);
 
-  // Socket connection and event handlers
+  // Initialize mock game state
   useEffect(() => {
-    if (!tableId || !isAuthenticated) return;
+    if (!tableId || !user) return;
 
-    const connectToTable = async () => {
-      try {
-        setLoading(true);
-        
-        // Connect to socket service
-        await socketService.connect();
-        
-        // Join the specific table room
-        socketService.joinTable(tableId, undefined, spectatorMode);
-        
-        setIsConnected(true);
-      } catch (err) {
-        setError('Failed to connect to table');
-        console.error('Table connection error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Simulate loading
+    setTimeout(() => {
+      const mockState = createMockGameState(tableId, user.id);
+      setGameState(mockState);
+      setIsConnected(true);
+      setLoading(false);
+    }, 1500);
+  }, [tableId, user]);
 
-    connectToTable();
+  // Simulate game progression
+  useEffect(() => {
+    if (!gameState || gameState.stage === 'waiting') return;
 
-    // Set up socket event listeners
-    const handleGameStateUpdate = (newGameState: GameState) => {
-      setGameState(newGameState);
-    };
+    const gameProgression = () => {
+      setGameState(prev => {
+        if (!prev) return prev;
 
-    const handlePlayerJoined = (data: { player: Player }) => {
-      // Handle player joining
-      if (soundEnabled) {
-        // Play join sound
-      }
-    };
-
-    const handlePlayerLeft = (data: { playerId: string }) => {
-      // Handle player leaving
-      if (soundEnabled) {
-        // Play leave sound
-      }
-    };
-
-    const handleChatMessage = (message: { id: string; username: string; message: string; timestamp: number }) => {
-      setChatMessages(prev => [...prev, message]);
-    };
-
-    const handleActionRequired = (data: { playerId: string; timeLimit: number; possibleActions: string[] }) => {
-      if (data.playerId === user?.id) {
-        // Highlight action buttons and start timer
-        if (soundEnabled) {
-          // Play action sound
+        // Simulate community cards being dealt
+        if (prev.stage === 'preflop' && prev.communityCards.length === 0) {
+          setTimeout(() => {
+            setGameState(current => current ? {
+              ...current,
+              stage: 'flop',
+              communityCards: ['AS', 'KH', 'QD']
+            } : null);
+          }, 3000);
+        } else if (prev.stage === 'flop' && prev.communityCards.length === 3) {
+          setTimeout(() => {
+            setGameState(current => current ? {
+              ...current,
+              stage: 'turn',
+              communityCards: ['AS', 'KH', 'QD', 'JC']
+            } : null);
+          }, 3000);
+        } else if (prev.stage === 'turn' && prev.communityCards.length === 4) {
+          setTimeout(() => {
+            setGameState(current => current ? {
+              ...current,
+              stage: 'river',
+              communityCards: ['AS', 'KH', 'QD', 'JC', '2H']
+            } : null);
+          }, 3000);
         }
-      }
+
+        return prev;
+      });
     };
 
-    const handleTableError = (error: { message: string }) => {
-      setError(error.message);
-    };
-
-    // Register socket listeners
-    socketService.on('game-state-update', handleGameStateUpdate);
-    socketService.on('player-joined', handlePlayerJoined);
-    socketService.on('player-left', handlePlayerLeft);
-    socketService.on('chat-message', handleChatMessage);
-    socketService.on('action-required', handleActionRequired);
-    socketService.on('table-error', handleTableError);
-
-    return () => {
-      // Cleanup socket listeners
-      socketService.off('game-state-update', handleGameStateUpdate);
-      socketService.off('player-joined', handlePlayerJoined);
-      socketService.off('player-left', handlePlayerLeft);
-      socketService.off('chat-message', handleChatMessage);
-      socketService.off('action-required', handleActionRequired);
-      socketService.off('table-error', handleTableError);
-      
-      // Leave table room
-      if (tableId) {
-        socketService.leaveTable();
-      }
-      
-      socketService.disconnect();
-    };
-  }, [tableId, isAuthenticated, user?.id, spectatorMode, soundEnabled]);
+    const interval = setInterval(gameProgression, 1000);
+    return () => clearInterval(interval);
+  }, [gameState]);
 
   // Action handlers
   const handlePlayerAction = useCallback((action: string, amount?: number) => {
     if (!gameState || !user) return;
 
-    socketService.playerAction(action, amount);
-  }, [tableId, gameState, user]);
+    console.log(`Player action: ${action}${amount ? ` (${amount})` : ''}`);
+
+    // Update game state based on action
+    setGameState(prev => {
+      if (!prev) return prev;
+
+      const updatedPlayers = prev.players.map(player => {
+        if (player.id === user.id) {
+          return {
+            ...player,
+            lastAction: action as any,
+            currentBet: action === 'call' ? prev.currentBet : (amount || 0),
+            chips: action === 'fold' ? player.chips : player.chips - (amount || 0),
+            hasFolded: action === 'fold',
+            isAllIn: action === 'all-in'
+          };
+        }
+        return player;
+      });
+
+      return {
+        ...prev,
+        players: updatedPlayers,
+        pot: prev.pot + (amount || 0),
+        currentBet: action === 'raise' ? (amount || 0) : prev.currentBet
+      };
+    });
+  }, [gameState, user]);
 
   const handleSendChat = useCallback(() => {
     if (!chatInput.trim() || !user) return;
 
-    socketService.sendChatMessage(chatInput.trim());
+    const newMessage = {
+      id: Date.now().toString(),
+      username: user.username,
+      message: chatInput.trim(),
+      timestamp: Date.now()
+    };
+
+    setChatMessages(prev => [...prev, newMessage]);
     setChatInput('');
   }, [chatInput, user]);
 
   const handleLeaveTable = useCallback(() => {
-    if (gameState && user) {
-      socketService.leaveTable();
-    }
     navigate('/lobby');
-  }, [gameState, user, navigate]);
+  }, [navigate]);
 
   const getCurrentPlayer = () => {
     return gameState?.players.find(p => p.id === user?.id);
@@ -199,6 +317,25 @@ const TablePage: React.FC = () => {
       top: `calc(50% + ${y}px)`,
       transform: 'translate(-50%, -50%)'
     };
+  };
+
+  const getValidActions = () => {
+    const currentPlayer = getCurrentPlayer();
+    if (!currentPlayer || currentPlayer.hasFolded) return [];
+
+    const actions = ['fold'];
+    
+    if (gameState?.currentBet === 0) {
+      actions.push('check', 'bet');
+    } else {
+      actions.push('call', 'raise');
+    }
+
+    if (currentPlayer.chips <= gameState?.currentBet || 0) {
+      actions.push('all-in');
+    }
+
+    return actions;
   };
 
   if (loading) {
@@ -245,6 +382,7 @@ const TablePage: React.FC = () => {
   const currentPlayer = getCurrentPlayer();
   const isPlayerTurn = gameState.currentPlayer === user?.id;
   const isPlayerSeated = !!currentPlayer && !currentPlayer.isSittingOut;
+  const validActions = getValidActions();
 
   return (
     <div className="min-h-screen bg-poker-dark-900 relative overflow-hidden">
@@ -272,6 +410,13 @@ const TablePage: React.FC = () => {
             <div className="text-sm text-gray-300">
               Blinds: {formatChips(gameState.smallBlind)}/{formatChips(gameState.bigBlind)}
             </div>
+            
+            <button
+              onClick={() => setGamePaused(!gamePaused)}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              {gamePaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+            </button>
             
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
@@ -326,7 +471,7 @@ const TablePage: React.FC = () => {
               <div className="text-center">
                 <div className="bg-poker-dark-800/90 rounded-lg px-4 py-2 border border-gray-600">
                   <div className="flex items-center space-x-2">
-                    <PokerChip color="gold" size="sm" />
+                    <PokerChip value={100} size="small" />
                     <span className="text-white font-bold text-lg">
                       {formatChips(gameState.pot)}
                     </span>
@@ -354,6 +499,7 @@ const TablePage: React.FC = () => {
                   relative bg-poker-dark-800 rounded-lg border-2 p-3 min-w-[120px]
                   ${player.id === gameState.currentPlayer ? 'border-poker-green-400 shadow-lg shadow-poker-green-400/50' : 'border-gray-600'}
                   ${player.id === user?.id ? 'ring-2 ring-blue-400' : ''}
+                  ${player.hasFolded ? 'opacity-50' : ''}
                 `}>
                   {/* Dealer Button */}
                   {player.isDealer && (
@@ -409,7 +555,7 @@ const TablePage: React.FC = () => {
                     {/* Current bet */}
                     {player.currentBet > 0 && (
                       <div className="flex items-center justify-center space-x-1">
-                        <PokerChip color="red" size="xs" />
+                        <PokerChip value={25} size="small" />
                         <span className="text-xs text-white">
                           {formatChips(player.currentBet)}
                         </span>
@@ -435,6 +581,13 @@ const TablePage: React.FC = () => {
                         <div className="text-xs text-white mt-1">
                           {player.timeLeft}s
                         </div>
+                      </div>
+                    )}
+
+                    {/* Fold indicator */}
+                    {player.hasFolded && (
+                      <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
+                        <span className="text-red-400 font-bold text-sm">FOLDED</span>
                       </div>
                     )}
                   </div>
@@ -494,12 +647,16 @@ const TablePage: React.FC = () => {
       </div>
 
       {/* Action Buttons */}
-      {isPlayerSeated && isPlayerTurn && (
+      {isPlayerSeated && isPlayerTurn && validActions.length > 0 && (
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
           <ActionButtons
-            gameState={gameState}
-            currentPlayer={currentPlayer}
+            validActions={validActions}
+            currentBet={gameState.currentBet}
+            minRaise={gameState.minRaise}
+            maxRaise={gameState.maxRaise}
+            playerChips={currentPlayer?.chips || 0}
             onAction={handlePlayerAction}
+            disabled={gamePaused}
           />
         </div>
       )}
@@ -525,6 +682,18 @@ const TablePage: React.FC = () => {
             <div className="flex items-center space-x-2 text-white">
               <Eye className="w-4 h-4" />
               <span className="font-semibold">Spectating</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game Paused Indicator */}
+      {gamePaused && (
+        <div className="absolute top-20 right-6 z-20">
+          <div className="bg-yellow-600/90 backdrop-blur rounded-lg px-4 py-2 border border-yellow-500">
+            <div className="flex items-center space-x-2 text-white">
+              <Pause className="w-4 h-4" />
+              <span className="font-semibold">Game Paused</span>
             </div>
           </div>
         </div>

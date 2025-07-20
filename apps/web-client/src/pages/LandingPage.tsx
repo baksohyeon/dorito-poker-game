@@ -23,19 +23,13 @@ const LandingPage: React.FC = () => {
               real-time multiplayer action, and competitive tournaments.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Link
-                to="/register"
+                to="/lobby"
                 className="poker-button poker-button-primary text-lg px-8 py-4 flex items-center justify-center"
               >
                 <Play className="w-5 h-5 mr-2" />
-                Start Playing
-              </Link>
-              <Link
-                to="/login"
-                className="poker-button poker-button-secondary text-lg px-8 py-4"
-              >
-                Sign In
+                Start Playing Now
               </Link>
             </div>
           </motion.div>
@@ -156,11 +150,11 @@ const LandingPage: React.FC = () => {
               Join thousands of players and start your poker journey today.
             </p>
             <Link
-              to="/register"
+              to="/lobby"
               className="poker-button poker-button-primary text-lg px-12 py-4 inline-flex items-center"
             >
               <Play className="w-5 h-5 mr-2" />
-              Get Started Free
+              Start Playing Now
             </Link>
           </motion.div>
         </div>

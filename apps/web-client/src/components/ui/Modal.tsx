@@ -6,8 +6,6 @@ import { RootState } from '../../store';
 import { closeModal } from '../../store/slices/uiSlice';
 
 // Modal content components
-import LoginModal from './modals/LoginModal';
-import RegisterModal from './modals/RegisterModal';
 import SettingsModal from './modals/SettingsModal';
 import TableCreateModal from './modals/TableCreateModal';
 import HandHistoryModal from './modals/HandHistoryModal';
@@ -23,10 +21,6 @@ const Modal: React.FC = () => {
 
   const renderModalContent = () => {
     switch (modal.type) {
-      case 'login':
-        return <LoginModal />;
-      case 'register':
-        return <RegisterModal />;
       case 'settings':
         return <SettingsModal />;
       case 'table-create':
