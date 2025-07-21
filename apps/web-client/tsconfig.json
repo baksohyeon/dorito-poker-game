@@ -24,9 +24,15 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["../../packages/shared/src/*"]
+      "@shared/*": ["../../packages/shared/src/*"],
+      "@database/*": ["../../packages/database/src/*"],
+      "@logger/*": ["../../packages/logger/src/*"]
     }
   },
-  "include": ["src", "../../packages/shared/src"],
-  "references": []
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/logger" }
+  ]
 }
