@@ -25,6 +25,8 @@ import {
   SessionStatus,
   HandStatus,
   TimeSettings,
+  SessionStatistics,
+  SidePot,
 } from '../types';
 
 export interface IGameEngine {

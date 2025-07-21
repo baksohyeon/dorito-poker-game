@@ -13,3 +13,5 @@ packages/database/src/generated/
 *.tsbuildinfo
 
 *.cookie
+
+*.log
