@@ -21,6 +21,11 @@ export class SessionLifecycleManager implements ISessionLifecycle {
     }
 
     canStartSession(session: PokerSession): boolean {
+        if (!session || !session.id) {
+            logger.error('Invalid session provided to canStartSession');
+            return false;
+        }
+
         // Check if session is in valid state to start
         if (session.status !== 'waiting') {
             logger.debug(`Session ${session.id} cannot start: status is ${session.status}`);
@@ -35,7 +40,7 @@ export class SessionLifecycleManager implements ISessionLifecycle {
         }
 
         // Check if all active players have sufficient stacks
-        const playersWithSufficientStack = activePlayers.filter(p => 
+        const playersWithSufficientStack = activePlayers.filter(p =>
             p.currentStack >= session.config.blindStructure.big
         );
         if (playersWithSufficientStack.length < session.config.minPlayers) {
@@ -53,6 +58,11 @@ export class SessionLifecycleManager implements ISessionLifecycle {
     }
 
     shouldAutoStartHand(session: PokerSession): boolean {
+        if (!session || !session.id) {
+            logger.error('Invalid session provided to shouldAutoStartHand');
+            return false;
+        }
+
         if (!session.autoStart) {
             return false;
         }
@@ -93,21 +103,20 @@ export class SessionLifecycleManager implements ISessionLifecycle {
             return 0;
         }
 
-        // Move dealer position clockwise
-        const currentDealer = session.dealerPosition;
-        let nextPosition = (currentDealer + 1) % activePlayers.length;
-
-        // Ensure the next dealer is actually an active player
+        // Sort players by seat number
         const sortedPlayers = activePlayers.sort((a, b) => a.seatNumber - b.seatNumber);
-        const currentDealerIndex = sortedPlayers.findIndex(p => p.seatNumber === currentDealer);
-        
-        if (currentDealerIndex !== -1) {
-            const nextDealerIndex = (currentDealerIndex + 1) % sortedPlayers.length;
-            nextPosition = sortedPlayers[nextDealerIndex].seatNumber;
+
+        // Find current dealer's index in sorted players
+        const currentDealerIndex = sortedPlayers.findIndex(p => p.seatNumber === session.dealerPosition);
+
+        // If dealer not found, start from first player
+        if (currentDealerIndex === -1) {
+            return sortedPlayers[0].seatNumber;
         }
 
-        logger.debug(`Moving dealer position from ${currentDealer} to ${nextPosition} for session ${session.id}`);
-        return nextPosition;
+        // Move to next player (with wraparound)
+        const nextIndex = (currentDealerIndex + 1) % sortedPlayers.length;
+        return sortedPlayers[nextIndex].seatNumber;
     }
 
     updatePlayerPositions(session: PokerSession): void {
@@ -116,19 +125,30 @@ export class SessionLifecycleManager implements ISessionLifecycle {
             return;
         }
 
-        // Update dealer position
-        session.dealerPosition = this.getNextDealerPosition(session);
-
-        // Calculate blind positions
+        // Sort players by seat number
         const sortedPlayers = activePlayers.sort((a, b) => a.seatNumber - b.seatNumber);
-        const dealerIndex = sortedPlayers.findIndex(p => p.seatNumber === session.dealerPosition);
 
-        if (dealerIndex !== -1) {
-            const smallBlindIndex = (dealerIndex + 1) % sortedPlayers.length;
-            const bigBlindIndex = (dealerIndex + 2) % sortedPlayers.length;
+        // Move dealer position to next player (this rotates the button)
+        const currentDealerIndex = sortedPlayers.findIndex(p => p.seatNumber === session.dealerPosition);
+        let nextDealerIndex = 0;
+        
+        if (currentDealerIndex !== -1) {
+            nextDealerIndex = (currentDealerIndex + 1) % sortedPlayers.length;
+        }
+        
+        session.dealerPosition = sortedPlayers[nextDealerIndex].seatNumber;
 
-            session.smallBlindPosition = sortedPlayers[smallBlindIndex].seatNumber;
-            session.bigBlindPosition = sortedPlayers[bigBlindIndex].seatNumber;
+        // Calculate blind positions based on new dealer position
+        const dealerIndex = nextDealerIndex;
+        
+        if (sortedPlayers.length === 2) {
+            // Heads-up: dealer is small blind
+            session.smallBlindPosition = sortedPlayers[dealerIndex].seatNumber;
+            session.bigBlindPosition = sortedPlayers[(dealerIndex + 1) % sortedPlayers.length].seatNumber;
+        } else {
+            // Multi-way: small blind is left of dealer
+            session.smallBlindPosition = sortedPlayers[(dealerIndex + 1) % sortedPlayers.length].seatNumber;
+            session.bigBlindPosition = sortedPlayers[(dealerIndex + 2) % sortedPlayers.length].seatNumber;
         }
 
         logger.debug(`Updated positions for session ${session.id}: Dealer=${session.dealerPosition}, SB=${session.smallBlindPosition}, BB=${session.bigBlindPosition}`);
@@ -294,12 +314,20 @@ export class SessionLifecycleManager implements ISessionLifecycle {
     }
 
     private markPlayerDisconnected(sessionId: string, playerId: string): void {
+        if (!sessionId || !playerId) {
+            logger.error('Invalid sessionId or playerId for disconnection');
+            return;
+        }
         // This would update the session player's disconnected timestamp
         // Implementation would depend on how sessions are stored/managed
         logger.debug(`Marked player ${playerId} as disconnected from session ${sessionId}`);
     }
 
     private markPlayerReconnected(sessionId: string, playerId: string): void {
+        if (!sessionId || !playerId) {
+            logger.error('Invalid sessionId or playerId for reconnection');
+            return;
+        }
         // This would clear the session player's disconnected timestamp
         // Implementation would depend on how sessions are stored/managed
         logger.debug(`Marked player ${playerId} as reconnected to session ${sessionId}`);
@@ -307,22 +335,22 @@ export class SessionLifecycleManager implements ISessionLifecycle {
 
     private handleDisconnectionTimeout(sessionId: string, playerId: string): void {
         logger.warn(`Player ${playerId} disconnection timeout in session ${sessionId}`);
-        
+
         // This would typically:
         // 1. Mark player as sitting out
         // 2. Auto-fold any active hands
         // 3. Update session state
-        
+
         // Clean up the timer
         this.disconnectionTimers.delete(`${sessionId}_${playerId}`);
     }
 
     private triggerAutoHandStart(sessionId: string): void {
         logger.debug(`Triggering auto hand start for session ${sessionId}`);
-        
+
         // This would typically emit an event or call the hand manager
         // to start a new hand automatically
-        
+
         // Clean up the timer
         this.autoStartTimers.delete(sessionId);
     }

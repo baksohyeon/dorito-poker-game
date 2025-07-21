@@ -6,13 +6,22 @@ import {
     TransitionTrigger,
     PlayerState,
     PlayerAction,
-    BettingOptions
+    BettingOptions,
+    HandRound,
+    PokerSession
 } from '@poker-game/shared';
 import { IGameFlow } from '@poker-game/shared';
 import { GAME_CONSTANTS } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
+import { EventEmitter } from 'events';
 
-export class GameFlowManager implements IGameFlow {
+export class GameFlowManager extends EventEmitter implements IGameFlow {
+    private activeFlows: Map<string, GameFlow> = new Map();
+    private phaseTimers: Map<string, NodeJS.Timeout> = new Map();
+
+    constructor() {
+        super();
+    }
     
     canAdvancePhase(gameState: GameState): boolean {
         const activePlayers = this.getActivePlayers(gameState);
@@ -235,5 +244,202 @@ export class GameFlowManager implements IGameFlow {
             maxRaise: player.chips + player.currentBet,
             potSize: gameState.pot
         };
+    }
+
+    // Session Integration Methods
+    
+    startSessionFlow(sessionId: string, session: PokerSession): void {
+        logger.info(`Starting game flow for session ${sessionId}`);
+        
+        this.emit('sessionFlowStarted', { sessionId, session });
+        
+        // Initialize session-level flow tracking
+        const flow: GameFlow = {
+            currentPhase: 'preflop',
+            nextPhase: 'flop',
+            canAdvancePhase: false,
+            phaseActions: [],
+            phaseDuration: 0,
+            phaseStartTime: Date.now(),
+            waitingForPlayers: [],
+            completedActions: new Map(),
+            pendingActions: new Map()
+        };
+        
+        this.activeFlows.set(sessionId, flow);
+    }
+
+    processHandFlow(sessionId: string, hand: HandRound): GameFlow {
+        const gameState = hand.gameState;
+        const flow = this.activeFlows.get(sessionId) || this.createDefaultFlow(gameState);
+        
+        // Update flow with current hand state
+        flow.currentPhase = gameState.phase;
+        flow.nextPhase = this.getNextPhase(gameState.phase) || undefined;
+        flow.canAdvancePhase = this.canAdvancePhase(gameState);
+        flow.phaseActions = this.getCurrentPhaseActions(gameState);
+        flow.waitingForPlayers = this.getWaitingPlayers(gameState);
+        
+        // Emit phase events
+        if (this.shouldEmitPhaseChange(sessionId, gameState.phase)) {
+            this.emit('phaseChanged', {
+                sessionId,
+                handId: hand.id,
+                phase: gameState.phase,
+                nextPhase: flow.nextPhase
+            });
+        }
+        
+        // Handle automatic phase advancement
+        if (flow.canAdvancePhase && flow.waitingForPlayers.length === 0) {
+            this.schedulePhaseAdvancement(sessionId, hand.id);
+        }
+        
+        this.activeFlows.set(sessionId, flow);
+        return flow;
+    }
+
+    handleActionFlow(sessionId: string, handId: string, action: PlayerAction, gameState: GameState): void {
+        logger.debug(`Processing action flow: ${action.type} by ${action.playerId}`);
+        
+        const flow = this.updateFlow(gameState, action);
+        this.activeFlows.set(sessionId, flow);
+        
+        // Emit action flow events
+        this.emit('actionFlow', {
+            sessionId,
+            handId,
+            action,
+            flow,
+            gameState
+        });
+        
+        // Check for flow state changes
+        if (this.isFlowStateChange(action, gameState)) {
+            this.emit('flowStateChange', {
+                sessionId,
+                handId,
+                action,
+                newState: gameState.phase,
+                activePlayers: this.getActivePlayers(gameState).length
+            });
+        }
+    }
+
+    completeHandFlow(sessionId: string, hand: HandRound): void {
+        logger.info(`Completing hand flow for ${hand.id} in session ${sessionId}`);
+        
+        // Clear any pending timers
+        this.clearPhaseTimer(sessionId);
+        
+        // Emit completion events
+        this.emit('handFlowCompleted', {
+            sessionId,
+            handId: hand.id,
+            finalState: hand.gameState,
+            winners: this.determineWinners(hand.gameState),
+            potDistribution: hand.finalPot
+        });
+    }
+
+    endSessionFlow(sessionId: string): void {
+        logger.info(`Ending game flow for session ${sessionId}`);
+        
+        // Cleanup session flow data
+        this.activeFlows.delete(sessionId);
+        this.clearPhaseTimer(sessionId);
+        
+        this.emit('sessionFlowEnded', { sessionId });
+    }
+
+    // Flow Management Utilities
+    
+    private createDefaultFlow(gameState: GameState): GameFlow {
+        return {
+            currentPhase: gameState.phase,
+            nextPhase: this.getNextPhase(gameState.phase) || undefined,
+            canAdvancePhase: this.canAdvancePhase(gameState),
+            phaseActions: [],
+            phaseDuration: 0,
+            phaseStartTime: Date.now(),
+            waitingForPlayers: this.getWaitingPlayers(gameState),
+            completedActions: new Map(),
+            pendingActions: new Map()
+        };
+    }
+
+    private shouldEmitPhaseChange(sessionId: string, currentPhase: GamePhase): boolean {
+        const flow = this.activeFlows.get(sessionId);
+        return !flow || flow.currentPhase !== currentPhase;
+    }
+
+    private schedulePhaseAdvancement(sessionId: string, handId: string): void {
+        // Clear existing timer
+        this.clearPhaseTimer(sessionId);
+        
+        // Schedule advancement after brief delay
+        const timer = setTimeout(() => {
+            this.emit('autoAdvancePhase', { sessionId, handId });
+        }, 1000); // 1 second delay
+        
+        this.phaseTimers.set(sessionId, timer);
+    }
+
+    private clearPhaseTimer(sessionId: string): void {
+        const timer = this.phaseTimers.get(sessionId);
+        if (timer) {
+            clearTimeout(timer);
+            this.phaseTimers.delete(sessionId);
+        }
+    }
+
+    private isFlowStateChange(action: PlayerAction, gameState: GameState): boolean {
+        const activePlayers = this.getActivePlayers(gameState);
+        
+        return (
+            action.type === 'all-in' ||
+            action.type === 'fold' ||
+            activePlayers.length <= 1 ||
+            gameState.phase === 'finished'
+        );
+    }
+
+    private determineWinners(gameState: GameState): string[] {
+        const activePlayers = this.getActivePlayers(gameState);
+        return activePlayers.map(p => p.id);
+    }
+
+    // Integration with Web Client
+    
+    getClientGameState(sessionId: string): any {
+        const flow = this.activeFlows.get(sessionId);
+        if (!flow) return null;
+        
+        return {
+            phase: flow.currentPhase,
+            nextPhase: flow.nextPhase,
+            canAdvancePhase: flow.canAdvancePhase,
+            waitingPlayers: flow.waitingForPlayers,
+            phaseDuration: flow.phaseDuration,
+            actionCount: flow.phaseActions.length
+        };
+    }
+
+    // Cleanup
+    
+    cleanup(): void {
+        // Clear all timers
+        for (const timer of this.phaseTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.phaseTimers.clear();
+        
+        // Clear flows
+        this.activeFlows.clear();
+        
+        // Remove listeners
+        this.removeAllListeners();
+        
+        logger.info('Game flow manager cleaned up');
     }
 }

@@ -147,6 +147,111 @@ const gameSlice = createSlice({
         leaveGame: () => {
             return initialState;
         },
+        // Enhanced game flow integration
+        updateGamePhase: (state, action: PayloadAction<{ phase: GamePhase; nextPhase?: GamePhase }>) => {
+            state.phase = action.payload.phase;
+            // Trigger animations based on phase
+            if (action.payload.phase === 'flop' || action.payload.phase === 'turn' || action.payload.phase === 'river') {
+                state.dealAnimation = true;
+            }
+            if (action.payload.phase === 'showdown') {
+                state.showCards = true;
+            }
+            if (action.payload.phase === 'finished') {
+                state.potWinAnimation = true;
+            }
+        },
+        connectToTable: (state, action: PayloadAction<{ tableId: string; sessionId: string }>) => {
+            state.tableId = action.payload.tableId;
+            state.id = action.payload.sessionId;
+        },
+        updateConnectionStatus: (state, action: PayloadAction<{ connected: boolean }>) => {
+            // Handle connection status changes
+        },
+        setActionTimer: (state, action: PayloadAction<{ playerId: string; timeRemaining: number }>) => {
+            const player = state.players.get(action.payload.playerId);
+            if (player) {
+                player.actionTimer = action.payload.timeRemaining;
+            }
+        },
+        updatePlayerChips: (state, action: PayloadAction<{ playerId: string; chips: number; currentBet?: number }>) => {
+            const player = state.players.get(action.payload.playerId);
+            if (player) {
+                player.chips = action.payload.chips;
+                if (action.payload.currentBet !== undefined) {
+                    player.currentBet = action.payload.currentBet;
+                }
+            }
+        },
+        addToPot: (state, action: PayloadAction<number>) => {
+            state.pot += action.payload;
+        },
+        dealCommunityCards: (state, action: PayloadAction<Card[]>) => {
+            state.communityCards = [...state.communityCards, ...action.payload];
+            state.dealAnimation = true;
+        },
+        setBettingOptions: (state, action: PayloadAction<{ canFold: boolean; canCheck: boolean; canCall: boolean; canBet: boolean; canRaise: boolean; minBet: number; maxRaise: number; callAmount: number }>) => {
+            const options = action.payload;
+            state.validActions = [];
+            
+            if (options.canFold) state.validActions.push('fold');
+            if (options.canCheck) state.validActions.push('check');
+            if (options.canCall) state.validActions.push('call');
+            if (options.canBet) state.validActions.push('bet');
+            if (options.canRaise) state.validActions.push('raise');
+        },
+        processPlayerAction: (state, action: PayloadAction<PlayerAction>) => {
+            // Add to action history
+            state.actionHistory.push(action.payload);
+            state.handHistory.push(action.payload);
+            
+            // Update current player
+            const nextPlayerIndex = state.actionHistory.length % state.players.size;
+            const playerIds = Array.from(state.players.keys());
+            state.currentPlayer = playerIds[nextPlayerIndex] || null;
+            
+            // Reset action state
+            state.canAct = false;
+            state.validActions = [];
+        },
+        updateHandResults: (state, action: PayloadAction<{ winners: string[]; potDistribution: number }>) => {
+            state.potWinAnimation = true;
+            // Update player profits based on results
+            for (const winnerId of action.payload.winners) {
+                const winner = state.players.get(winnerId);
+                if (winner) {
+                    winner.chips += action.payload.potDistribution / action.payload.winners.length;
+                }
+            }
+        },
+        resetForNewHand: (state) => {
+            state.communityCards = [];
+            state.burnCards = [];
+            state.myCards = [];
+            state.actionHistory = [];
+            state.handHistory = [];
+            state.pot = 0;
+            state.sidePots = [];
+            state.showCards = false;
+            state.potWinAnimation = false;
+            state.dealAnimation = false;
+            state.canAct = false;
+            state.validActions = [];
+            state.currentPlayer = null;
+            
+            // Reset player states for new hand
+            for (const [playerId, player] of state.players) {
+                state.players.set(playerId, {
+                    ...player,
+                    currentBet: 0,
+                    hasActed: false,
+                    actionTimer: undefined
+                });
+            }
+            
+            state.handNumber += 1;
+            state.round = 0;
+        },
     },
 });
 
@@ -166,6 +271,18 @@ export const {
     clearDealAnimation,
     updatePlayer,
     leaveGame,
+    // Enhanced actions
+    updateGamePhase,
+    connectToTable,
+    updateConnectionStatus,
+    setActionTimer,
+    updatePlayerChips,
+    addToPot,
+    dealCommunityCards,
+    setBettingOptions,
+    processPlayerAction,
+    updateHandResults,
+    resetForNewHand,
 } = gameSlice.actions;
 
 export default gameSlice.reducer; 

@@ -18,6 +18,19 @@ export class SessionManager implements ISessionManager {
     private sessionsByTable: Map<string, string> = new Map();
 
     createSession(config: SessionConfig, tableId: string): PokerSession {
+        if (!tableId || typeof tableId !== 'string') {
+            throw new Error('Valid tableId is required');
+        }
+
+        // Check if table already has an active session
+        const existingSessionId = this.sessionsByTable.get(tableId);
+        if (existingSessionId) {
+            const existingSession = this.sessions.get(existingSessionId);
+            if (existingSession && (existingSession.status === 'active' || existingSession.status === 'waiting')) {
+                throw new Error(`Table ${tableId} already has an active session`);
+            }
+        }
+
         const sessionId = this.generateSessionId();
         const now = Date.now();
 
@@ -143,9 +156,21 @@ export class SessionManager implements ISessionManager {
     }
 
     addPlayer(sessionId: string, player: SessionPlayer): boolean {
+        // Input validation
+        if (!sessionId || !player || !player.playerId) {
+            logger.error('Invalid input: sessionId and valid player required');
+            return false;
+        }
+
         const session = this.sessions.get(sessionId);
         if (!session) {
             logger.error(`Session not found: ${sessionId}`);
+            return false;
+        }
+
+        // Check session status
+        if (session.status === 'finished' || session.status === 'cancelled') {
+            logger.warn(`Cannot add player to ${session.status} session ${sessionId}`);
             return false;
         }
 
@@ -155,10 +180,20 @@ export class SessionManager implements ISessionManager {
             return false;
         }
 
-        // Check if seat is available
+        // Check seat number availability
+        if (player.seatNumber !== undefined) {
+            const seatTaken = Array.from(session.players.values())
+                .some(p => p.seatNumber === player.seatNumber && p.isActive);
+            if (seatTaken) {
+                logger.warn(`Seat ${player.seatNumber} already occupied in session ${sessionId}`);
+                return false;
+            }
+        }
+
+        // Check if player is already in session
         const existingPlayer = session.players.get(player.playerId);
-        if (existingPlayer) {
-            logger.warn(`Player ${player.playerId} already in session ${sessionId}`);
+        if (existingPlayer && existingPlayer.isActive) {
+            logger.warn(`Player ${player.playerId} already active in session ${sessionId}`);
             return false;
         }
 
@@ -166,6 +201,12 @@ export class SessionManager implements ISessionManager {
         if (!this.validateBuyIn(player.buyInAmount, session.config.buyInLimits)) {
             logger.warn(`Invalid buy-in amount for player ${player.playerId}: ${player.buyInAmount}`);
             return false;
+        }
+
+        // Validate stack size
+        if (player.currentStack !== player.buyInAmount) {
+            logger.warn(`Stack mismatch for player ${player.playerId}: expected ${player.buyInAmount}, got ${player.currentStack}`);
+            player.currentStack = player.buyInAmount;
         }
 
         session.players.set(player.playerId, {
@@ -184,6 +225,11 @@ export class SessionManager implements ISessionManager {
     }
 
     removePlayer(sessionId: string, playerId: string): boolean {
+        if (!sessionId || !playerId) {
+            logger.error('Invalid input: sessionId and playerId required');
+            return false;
+        }
+
         const session = this.sessions.get(sessionId);
         if (!session) {
             logger.error(`Session not found: ${sessionId}`);
@@ -196,13 +242,21 @@ export class SessionManager implements ISessionManager {
             return false;
         }
 
+        if (!player.isActive) {
+            logger.warn(`Player ${playerId} already inactive in session ${sessionId}`);
+            return false;
+        }
+
         // Mark as inactive and set leave time
         player.isActive = false;
         player.leftAt = Date.now();
         player.profit = player.currentStack - player.buyInAmount;
 
+        // Update session activity timestamp
+        session.duration = Date.now() - session.startTime;
+
         // Don't actually remove from map to preserve statistics
-        logger.info(`Removed player ${playerId} from session ${sessionId} with stack ${player.currentStack}`);
+        logger.info(`Removed player ${playerId} from session ${sessionId} with stack ${player.currentStack}, profit: ${player.profit}`);
         return true;
     }
 
@@ -215,7 +269,7 @@ export class SessionManager implements ISessionManager {
     }
 
     getActiveSessionsForTable(tableId: string): PokerSession[] {
-        return Array.from(this.sessions.values()).filter(s => 
+        return Array.from(this.sessions.values()).filter(s =>
             s.tableId === tableId && (s.status === 'active' || s.status === 'waiting')
         );
     }
@@ -232,7 +286,7 @@ export class SessionManager implements ISessionManager {
             const allowedUpdates = ['timeSettings', 'rakeStructure'];
             const updates = Object.keys(config);
             const invalidUpdates = updates.filter(key => !allowedUpdates.includes(key));
-            
+
             if (invalidUpdates.length > 0) {
                 logger.warn(`Cannot update config for active session ${sessionId}: ${invalidUpdates.join(', ')}`);
                 return false;
@@ -244,8 +298,20 @@ export class SessionManager implements ISessionManager {
         return true;
     }
 
+    updateSession(session: PokerSession): boolean {
+        if (!session.id || !this.sessions.has(session.id)) {
+            logger.error(`Session not found: ${session.id}`);
+            return false;
+        }
+
+        this.sessions.set(session.id, session);
+        return true;
+    }
+
     private generateSessionId(): string {
-        return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const timestamp = Date.now();
+        const randomPart = Math.random().toString(36).substr(2, 9);
+        return `session_${timestamp}_${randomPart}`;
     }
 
     private validateSessionConfig(config: SessionConfig): void {
@@ -267,6 +333,12 @@ export class SessionManager implements ISessionManager {
     }
 
     private validateBuyIn(amount: number, limits: any): boolean {
+        if (typeof amount !== 'number' || amount <= 0) {
+            return false;
+        }
+        if (!limits || typeof limits.min !== 'number' || typeof limits.max !== 'number') {
+            return false;
+        }
         return amount >= limits.min && amount <= limits.max;
     }
 
@@ -298,7 +370,7 @@ export class SessionManager implements ISessionManager {
     private updateFinalStatistics(session: PokerSession): void {
         const totalDuration = session.endTime! - session.startTime;
         session.duration = totalDuration;
-        
+
         if (session.totalHands > 0) {
             session.statistics.averageHandDuration = totalDuration / session.totalHands;
             session.statistics.averagePotSize = session.totalPot / session.totalHands;

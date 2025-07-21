@@ -16,7 +16,18 @@ export class SessionStatisticsManager implements ISessionStatistics {
     private handStatistics: Map<string, Map<string, any>> = new Map();
 
     updateHandStatistics(session: PokerSession, hand: HandRound): void {
+        if (!session || !hand || !session.id || !hand.id) {
+            logger.error('Invalid input: session and hand with IDs required');
+            return;
+        }
+
         try {
+            // Validate hand completion
+            if (hand.status !== 'complete') {
+                logger.warn(`Attempted to update statistics for incomplete hand ${hand.id}`);
+                return;
+            }
+
             // Update session-level statistics
             this.updateSessionStats(session, hand);
 
@@ -33,12 +44,18 @@ export class SessionStatisticsManager implements ISessionStatistics {
     }
 
     calculateSessionStats(sessionId: string): SessionStatistics {
+        if (!sessionId) {
+            throw new Error('Session ID is required');
+        }
+
         const session = this.sessions.get(sessionId);
         if (!session) {
             throw new Error(`Session not found: ${sessionId}`);
         }
 
-        const completedHands = session.handHistory.filter(h => h.status === 'complete');
+        const completedHands = (session.handHistory || []).filter(h => 
+            h && h.status === 'complete' && h.duration > 0
+        );
         const totalHands = completedHands.length;
 
         if (totalHands === 0) {
@@ -266,40 +283,70 @@ export class SessionStatisticsManager implements ISessionStatistics {
     }
 
     private updateSessionStats(session: PokerSession, hand: HandRound): void {
-        session.totalHands++;
-        session.totalPot += hand.finalPot;
-        session.totalRake += hand.rake;
+        // Initialize counters if not present
+        session.totalHands = (session.totalHands || 0) + 1;
+        session.totalPot = (session.totalPot || 0) + Math.max(0, hand.finalPot);
+        session.totalRake = (session.totalRake || 0) + Math.max(0, hand.rake);
 
-        // Update session statistics
+        // Ensure statistics object exists
+        if (!session.statistics) {
+            session.statistics = this.createEmptyStatistics();
+        }
+
         const stats = session.statistics;
         stats.totalHandsDealt++;
-        stats.rakeCollected += hand.rake;
+        stats.rakeCollected = Math.max(0, stats.rakeCollected + hand.rake);
 
-        if (hand.finalPot > stats.biggestPot) {
+        // Update extremes with validation
+        if (hand.finalPot > 0 && hand.finalPot > stats.biggestPot) {
             stats.biggestPot = hand.finalPot;
         }
 
-        if (hand.duration > stats.longestHand) {
-            stats.longestHand = hand.duration;
-        }
+        if (hand.duration > 0) {
+            if (hand.duration > stats.longestHand) {
+                stats.longestHand = hand.duration;
+            }
 
-        if (hand.duration < stats.fastestHand) {
-            stats.fastestHand = hand.duration;
+            if (stats.fastestHand === 0 || hand.duration < stats.fastestHand) {
+                stats.fastestHand = hand.duration;
+            }
         }
     }
 
     private updatePlayerStats(session: PokerSession, hand: HandRound): void {
+        if (!hand.participants || hand.participants.length === 0) {
+            logger.warn(`Hand ${hand.id} has no participants`);
+            return;
+        }
+
         for (const participantId of hand.participants) {
+            if (!participantId) continue;
+
             const sessionPlayer = session.players.get(participantId);
             if (sessionPlayer) {
-                sessionPlayer.handsPlayed++;
+                // Initialize stats if needed
+                sessionPlayer.handsPlayed = (sessionPlayer.handsPlayed || 0) + 1;
 
                 // Check if player won this hand
-                const winner = hand.winners.find(w => w.playerId === participantId);
-                if (winner) {
-                    sessionPlayer.handsWon++;
-                    sessionPlayer.profit += winner.winAmount;
-                    sessionPlayer.currentStack += winner.winAmount;
+                const winner = hand.winners?.find(w => w.playerId === participantId);
+                if (winner && winner.winAmount > 0) {
+                    sessionPlayer.handsWon = (sessionPlayer.handsWon || 0) + 1;
+                    sessionPlayer.profit = (sessionPlayer.profit || 0) + winner.winAmount;
+                    
+                    // Update current stack carefully
+                    if (typeof sessionPlayer.currentStack === 'number') {
+                        sessionPlayer.currentStack = Math.max(0, sessionPlayer.currentStack + winner.winAmount);
+                    }
+                } else if (hand.participants.includes(participantId)) {
+                    // Player participated but didn't win - this is a loss
+                    const gamePlayer = hand.gameState?.players?.get(participantId);
+                    if (gamePlayer) {
+                        const lossAmount = (gamePlayer.startingChips || 0) - (gamePlayer.chips || 0);
+                        if (lossAmount > 0) {
+                            sessionPlayer.profit = (sessionPlayer.profit || 0) - lossAmount;
+                            sessionPlayer.currentStack = Math.max(0, (sessionPlayer.currentStack || 0) - lossAmount);
+                        }
+                    }
                 }
             }
         }

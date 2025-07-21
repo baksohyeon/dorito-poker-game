@@ -2,10 +2,16 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "composite": true
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@shared/*": ["../../packages/shared/src/*"]
+    },
+    "types": ["jest", "node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "**/*.test.ts"],
+  "exclude": ["dist"],
   "references": [
     { "path": "../../packages/shared" },
     { "path": "../../packages/database" },

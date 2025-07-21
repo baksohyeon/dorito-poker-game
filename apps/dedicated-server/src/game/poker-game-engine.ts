@@ -43,7 +43,7 @@ export class PokerGameEngine implements IGameEngine {
 
         // Initialize players with enhanced properties
         const enhancedPlayers = new Map(players.map(p => [
-            p.id, 
+            p.id,
             {
                 ...p,
                 startingChips: p.chips,
@@ -236,9 +236,9 @@ export class PokerGameEngine implements IGameEngine {
         const potSize = gameState.pot;
         const rakePercent = gameState.rakePercent;
         const rakeCap = gameState.tableConfig.rakeCap;
-        
+
         // No rake if pot is too small or no flop seen (no flop no drop rule)
-        if (potSize < GAME_CONSTANTS.RAKE_SETTINGS.MIN_RAKE_POT || 
+        if (potSize < GAME_CONSTANTS.RAKE_SETTINGS.MIN_RAKE_POT ||
             (GAME_CONSTANTS.RAKE_SETTINGS.NO_FLOP_NO_DROP && gameState.phase === 'preflop')) {
             return {
                 potSize,
@@ -318,7 +318,6 @@ export class PokerGameEngine implements IGameEngine {
             this.processFold(newState, player);
             logger.warn(`Player ${action.playerId} timed out, auto-folding`);
         } else {
-
             // Process the action
             switch (action.type) {
                 case 'fold':
@@ -410,7 +409,9 @@ export class PokerGameEngine implements IGameEngine {
         }
 
         if (amount > player.chips) {
-            throw new Error('Bet amount exceeds available chips');
+            // Convert to all-in
+            this.processAllIn(gameState, player);
+            return;
         }
 
         if (amount < gameState.blinds.big) {
@@ -434,7 +435,9 @@ export class PokerGameEngine implements IGameEngine {
         }
 
         if (amount > player.chips + player.currentBet) {
-            throw new Error('Raise amount exceeds available chips');
+            // Convert to all-in
+            this.processAllIn(gameState, player);
+            return;
         }
 
         const raiseAmount = amount - player.currentBet;
@@ -453,6 +456,11 @@ export class PokerGameEngine implements IGameEngine {
         player.totalBet += allInAmount;
         player.status = 'all-in';
         gameState.pot += allInAmount;
+
+        // Update min raise if this all-in bet is larger
+        if (player.currentBet > gameState.minRaise) {
+            gameState.minRaise = player.currentBet;
+        }
 
         logger.debug(`Player ${player.id} went all-in for ${allInAmount}`);
     }
@@ -762,11 +770,19 @@ export class PokerGameEngine implements IGameEngine {
         const newState = { ...gameState };
 
         // Move dealer button
-        const activePlayers = Array.from(newState.players.values()).filter(p => p.chips > 0);
+        const activePlayers = Array.from(newState.players.values())
+            .filter(p => p.chips > 0)
+            .sort((a, b) => a.position - b.position);
+
         if (activePlayers.length >= 2) {
-            newState.dealerPosition = (newState.dealerPosition + 1) % activePlayers.length;
-            newState.smallBlindPosition = (newState.dealerPosition + 1) % activePlayers.length;
-            newState.bigBlindPosition = (newState.dealerPosition + 2) % activePlayers.length;
+            // Find current dealer's position in sorted active players
+            const currentDealerIndex = activePlayers.findIndex(p => p.position === newState.dealerPosition);
+            const nextDealerIndex = (currentDealerIndex + 1) % activePlayers.length;
+
+            // Set new positions based on next dealer
+            newState.dealerPosition = activePlayers[nextDealerIndex].position;
+            newState.smallBlindPosition = activePlayers[(nextDealerIndex + 1) % activePlayers.length].position;
+            newState.bigBlindPosition = activePlayers[(nextDealerIndex + 2) % activePlayers.length].position;
         }
 
         // Reset player states
@@ -775,9 +791,9 @@ export class PokerGameEngine implements IGameEngine {
             player.currentBet = 0;
             player.totalBet = 0;
             player.hasActed = false;
-            player.isDealer = false;
-            player.isSmallBlind = false;
-            player.isBigBlind = false;
+            player.isDealer = player.position === newState.dealerPosition;
+            player.isSmallBlind = player.position === newState.smallBlindPosition;
+            player.isBigBlind = player.position === newState.bigBlindPosition;
 
             // Reset status if not broke
             if (player.chips > 0) {
@@ -872,7 +888,7 @@ export class PokerGameEngine implements IGameEngine {
                 trigger = 'manual';
         }
 
-        const activePlayers = Array.from(gameState.players.values()).filter(p => 
+        const activePlayers = Array.from(gameState.players.values()).filter(p =>
             p.status === 'active' || p.status === 'all-in'
         );
 
@@ -958,7 +974,7 @@ export class PokerGameEngine implements IGameEngine {
 
     private getWaitingPlayers(gameState: GameState): string[] {
         const waitingPlayers: string[] = [];
-        
+
         for (const [playerId, player] of gameState.players) {
             if (player.status === 'active' && !player.hasActed) {
                 waitingPlayers.push(playerId);

@@ -1,25 +1,22 @@
-🎮 Core game system
+# Dedicated Server
 
-PokerGameEngine: Complete Texas Holdham Game Logic
-HandEvaluator: Accurate Poker Hand Evaluation and Comparison
-Deck: Cryptographically secure card shuffle
-GameManager: Managing the Game Life Cycle
+Poker game engine with real-time multiplayer sessions.
 
-🔌 Real-time communication
+## What it does
+- Runs Texas Hold'em poker games
+- Manages multiple tables simultaneously  
+- Handles player connections via WebSocket
+- Tracks game statistics and hand history
 
-WebSocket Server: Socket.IO-based real-time communication
-ConnectionManager:managing player connections, processing reconnection
-Event Manager: Game Event System
-Authentication Middleware: JWT-based socket authentication
+## Key Components
+- **Session Orchestrator**: Main game controller
+- **Game Flow Manager**: Handles betting rounds and phases
+- **Hand Manager**: Deals cards and processes actions
+- **Statistics**: Tracks player performance
 
-🏓 Table Management
+## Usage
+```bash
+npm start  # Starts server on port 3001
+```
 
-TableManager: Creating a table based on Snowflake ID
-Player Sitting: Automatic Positioning
-Health Management: Standby → Active → Game Progress
-
-📡 Master server interworking
-
-Auto-registration:registering to the master server at startup
-Heartbeat: Send status every 30 seconds
-Metric collection: CPU, memory, table/player count
+Automatically registers with master server and reports table status.
