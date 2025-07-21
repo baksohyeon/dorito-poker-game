@@ -17,6 +17,14 @@ import {
   GamePhase,
   GameType,
   PlayerSessionStats,
+  PokerSession,
+  HandRound,
+  SessionPlayer,
+  SessionConfig,
+  SessionType,
+  SessionStatus,
+  HandStatus,
+  TimeSettings,
 } from '../types';
 
 export interface IGameEngine {
@@ -131,4 +139,92 @@ export interface TableFilters {
   stakesMax?: number;
   isPrivate?: boolean;
   hasAvailableSeats?: boolean;
+}
+
+export interface ISessionManager {
+  createSession(config: SessionConfig, tableId: string): PokerSession;
+  startSession(sessionId: string): boolean;
+  pauseSession(sessionId: string, reason?: string): boolean;
+  resumeSession(sessionId: string): boolean;
+  endSession(sessionId: string): boolean;
+  addPlayer(sessionId: string, player: SessionPlayer): boolean;
+  removePlayer(sessionId: string, playerId: string): boolean;
+  getSession(sessionId: string): PokerSession | null;
+  getAllSessions(): PokerSession[];
+  updateSessionConfig(sessionId: string, config: Partial<SessionConfig>): boolean;
+}
+
+export interface IHandRoundManager {
+  startNewHand(sessionId: string): HandRound;
+  dealHand(handId: string): HandRound;
+  processHandAction(handId: string, action: PlayerAction): HandRound;
+  completeHand(handId: string): HandRound;
+  cancelHand(handId: string, reason: string): HandRound;
+  getHand(handId: string): HandRound | null;
+  getCurrentHand(sessionId: string): HandRound | null;
+  getHandHistory(sessionId: string, limit?: number): HandRound[];
+}
+
+export interface IUnlimitedHoldemEngine {
+  validateBet(gameState: GameState, playerId: string, amount: number): boolean;
+  calculateMinRaise(gameState: GameState): number;
+  calculateMaxBet(gameState: GameState, playerId: string): number;
+  processAllInScenario(gameState: GameState, playerId: string): GameState;
+  calculateSidePots(gameState: GameState): SidePot[];
+  isNoLimitAction(action: PlayerAction, gameState: GameState): boolean;
+}
+
+export interface ISessionLifecycle {
+  canStartSession(session: PokerSession): boolean;
+  shouldAutoStartHand(session: PokerSession): boolean;
+  getNextDealerPosition(session: PokerSession): number;
+  updatePlayerPositions(session: PokerSession): void;
+  handlePlayerDisconnection(sessionId: string, playerId: string): void;
+  handlePlayerReconnection(sessionId: string, playerId: string): void;
+  cleanupInactiveSessions(): void;
+}
+
+export interface ISessionStatistics {
+  updateHandStatistics(session: PokerSession, hand: HandRound): void;
+  calculateSessionStats(sessionId: string): SessionStatistics;
+  getPlayerStats(sessionId: string, playerId: string): PlayerSessionStats;
+  generateSessionReport(sessionId: string): SessionReport;
+  exportSessionData(sessionId: string): SessionExportData;
+}
+
+export interface SessionReport {
+  sessionId: string;
+  duration: number;
+  totalHands: number;
+  totalPlayers: number;
+  biggestWinner: string;
+  biggestLoser: string;
+  biggestPot: number;
+  totalRake: number;
+  averageHandDuration: number;
+  playersPerFlop: number;
+  showdownRate: number;
+}
+
+export interface SessionExportData {
+  session: PokerSession;
+  hands: HandRound[];
+  playerSummaries: PlayerSummary[];
+  statistics: SessionStatistics;
+  exportedAt: number;
+  format: 'json' | 'csv' | 'xml';
+}
+
+export interface PlayerSummary {
+  playerId: string;
+  playerName: string;
+  buyIn: number;
+  cashOut: number;
+  profit: number;
+  handsPlayed: number;
+  handsWon: number;
+  vpip: number;
+  pfr: number;
+  aggression: number;
+  sessionDuration: number;
 }

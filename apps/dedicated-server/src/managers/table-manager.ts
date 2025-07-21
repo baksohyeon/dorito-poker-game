@@ -34,8 +34,8 @@ export class TableManager {
             players: new Map(),
             currentGame: undefined,
             gamesPlayed: 0,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         };
 
         // Save to database
@@ -112,7 +112,7 @@ export class TableManager {
         };
 
         table.players.set(playerId, playerState);
-        table.updatedAt = new Date();
+        table.updatedAt = Date.now();
 
         // Update table status
         if (table.players.size >= table.config.minPlayers && table.status === 'waiting') {
@@ -142,7 +142,7 @@ export class TableManager {
         }
 
         table.players.delete(playerId);
-        table.updatedAt = new Date();
+        table.updatedAt = Date.now();
 
         // Update table status
         if (table.players.size < table.config.minPlayers) {
@@ -195,7 +195,7 @@ export class TableManager {
             return false;
         }
 
-        Object.assign(table, updates, { updatedAt: new Date() });
+        Object.assign(table, updates, { updatedAt: Date.now() });
 
         // Update database
         await databaseService.tables.updateTable(tableId, {

@@ -382,3 +382,134 @@ export interface Table {
   nextGameStartTime?: number;
   blindLevelStartTime?: number;
 }
+
+export interface PokerSession {
+  id: string;
+  tableId: string;
+  sessionType: SessionType;
+  status: SessionStatus;
+  players: Map<string, SessionPlayer>;
+  currentHand?: HandRound;
+  handHistory: HandRound[];
+  handNumber: number;
+  startTime: number;
+  endTime?: number;
+  duration: number;
+  totalHands: number;
+  totalPot: number;
+  totalRake: number;
+  dealerPosition: number;
+  smallBlindPosition: number;
+  bigBlindPosition: number;
+  config: SessionConfig;
+  statistics: SessionStatistics;
+  pausedAt?: number;
+  pauseReason?: string;
+  autoStart: boolean;
+  nextHandStartTime?: number;
+}
+
+export interface HandRound {
+  id: string;
+  sessionId: string;
+  handNumber: number;
+  gameState: GameState;
+  startTime: number;
+  endTime?: number;
+  duration: number;
+  status: HandStatus;
+  phase: GamePhase;
+  dealerPosition: number;
+  smallBlindPosition: number;
+  bigBlindPosition: number;
+  participants: string[];
+  winners: HandWinner[];
+  finalPot: number;
+  rake: number;
+  showdownReached: boolean;
+  communityCards: Card[];
+  playerHands: Map<string, Card[]>;
+  actionSequence: PlayerAction[];
+  bettingRounds: BettingRound[];
+}
+
+export interface SessionPlayer {
+  playerId: string;
+  seatNumber: number;
+  buyInAmount: number;
+  currentStack: number;
+  profit: number;
+  handsPlayed: number;
+  handsWon: number;
+  sessionStats: PlayerSessionStats;
+  joinedAt: number;
+  leftAt?: number;
+  isActive: boolean;
+  autoPost: boolean;
+  timeBank: number;
+  disconnectedAt?: number;
+}
+
+export interface SessionConfig {
+  gameType: GameType;
+  bettingLimit: BettingLimit;
+  blindStructure: BlindStructure;
+  maxPlayers: number;
+  minPlayers: number;
+  buyInLimits: BuyInConfig;
+  timeSettings: TimeSettings;
+  rakeStructure: RakeStructure;
+  autoStartDelay: number;
+  handBreakDuration: number;
+  allowObservers: boolean;
+  allowRebuy: boolean;
+  rebuyLimits: RebuyLimits;
+}
+
+export interface SessionStatistics {
+  totalHandsDealt: number;
+  averageHandDuration: number;
+  averagePotSize: number;
+  playersPerFlop: number;
+  showdownPercentage: number;
+  rakeCollected: number;
+  biggestPot: number;
+  longestHand: number;
+  fastestHand: number;
+  playerTurnover: number;
+}
+
+export interface HandWinner {
+  playerId: string;
+  winAmount: number;
+  handResult: HandResult;
+  potType: 'main' | 'side';
+  potId?: string;
+}
+
+export interface TimeSettings {
+  actionTimeLimit: number;
+  timeBankDefault: number;
+  timeBankMax: number;
+  disconnectGracePeriod: number;
+  handStartDelay: number;
+}
+
+export interface RakeStructure {
+  percentage: number;
+  capAmount: number;
+  noFlopNoDrop: boolean;
+  minPotForRake: number;
+  jackpotDrop: number;
+}
+
+export interface RebuyLimits {
+  maxRebuys: number;
+  minRebuyAmount: number;
+  maxRebuyAmount: number;
+  rebuyTimeLimit: number;
+}
+
+export type SessionType = 'cash-game' | 'tournament' | 'sit-n-go' | 'heads-up' | 'short-handed';
+export type SessionStatus = 'waiting' | 'active' | 'paused' | 'finished' | 'cancelled';
+export type HandStatus = 'dealing' | 'betting' | 'showdown' | 'complete' | 'cancelled';
