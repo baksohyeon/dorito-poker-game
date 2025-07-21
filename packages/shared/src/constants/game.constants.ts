@@ -57,6 +57,8 @@ export const GAME_PHASES = {
   RIVER: 'river',
   SHOWDOWN: 'showdown',
   FINISHED: 'finished',
+  PAUSED: 'paused',
+  CANCELLED: 'cancelled',
 } as const;
 
 // Player action constants
@@ -76,6 +78,8 @@ export const PLAYER_STATUS = {
   ALL_IN: 'all-in',
   SITTING_OUT: 'sitting-out',
   DISCONNECTED: 'disconnected',
+  WAITING: 'waiting',
+  AWAY: 'away',
 } as const;
 
 // Table status constants
@@ -84,13 +88,17 @@ export const TABLE_STATUS = {
   ACTIVE: 'active',
   PAUSED: 'paused',
   CLOSED: 'closed',
+  FULL: 'full',
+  BREAKING: 'breaking',
 } as const;
 
 // Game type constants
 export const GAME_TYPES = {
   TEXAS_HOLDEM: 'texas-holdem',
   OMAHA: 'omaha',
+  OMAHA_HI_LO: 'omaha-hi-lo',
   SEVEN_CARD_STUD: 'seven-card-stud',
+  FIVE_CARD_DRAW: 'five-card-draw',
 } as const;
 
 // Betting limits
@@ -156,6 +164,73 @@ export const CHAT_LIMITS = {
   SLOW_MODE_MIN_INTERVAL: 3, // seconds
 } as const;
 
+// Action validation error codes
+export const ACTION_ERROR_CODES = {
+  INVALID_PLAYER: 'INVALID_PLAYER',
+  NOT_YOUR_TURN: 'NOT_YOUR_TURN',
+  INSUFFICIENT_CHIPS: 'INSUFFICIENT_CHIPS',
+  INVALID_AMOUNT: 'INVALID_AMOUNT',
+  ACTION_TIMEOUT: 'ACTION_TIMEOUT',
+  GAME_FINISHED: 'GAME_FINISHED',
+  INVALID_ACTION_TYPE: 'INVALID_ACTION_TYPE',
+  BET_TOO_SMALL: 'BET_TOO_SMALL',
+  RAISE_TOO_SMALL: 'RAISE_TOO_SMALL',
+  MUST_CALL_FIRST: 'MUST_CALL_FIRST',
+  CANNOT_CHECK: 'CANNOT_CHECK',
+  DUPLICATE_ACTION: 'DUPLICATE_ACTION',
+} as const;
+
+// Position constants
+export const POSITION_NAMES = {
+  EARLY: 'early',
+  MIDDLE: 'middle',
+  LATE: 'late',
+  BLINDS: 'blinds',
+  BUTTON: 'button',
+  CUTOFF: 'cutoff',
+  HIJACK: 'hijack',
+  UNDER_THE_GUN: 'under_the_gun',
+} as const;
+
+// Rake constants
+export const RAKE_SETTINGS = {
+  MIN_RAKE_POT: 1.0,
+  MAX_RAKE_PERCENT: 5.0,
+  DEFAULT_RAKE_PERCENT: 2.5,
+  NO_FLOP_NO_DROP: true,
+  TOURNAMENT_RAKE_PERCENT: 10.0,
+} as const;
+
+// Action timing constants
+export const ACTION_TIMERS = {
+  DEFAULT_ACTION_TIME: 30, // seconds
+  TIME_BANK_DEFAULT: 60, // seconds
+  WARNING_TIME: 10, // seconds before timeout
+  DISCONNECT_GRACE: 30, // seconds before sitting out
+  AWAY_TIMEOUT: 180, // seconds before marked as away
+} as const;
+
+// Statistics tracking constants
+export const STATS_CONSTANTS = {
+  MIN_HANDS_FOR_STATS: 20,
+  VPIP_PREFLOP_ACTIONS: ['call', 'bet', 'raise', 'all-in'],
+  PFR_PREFLOP_ACTIONS: ['bet', 'raise', 'all-in'],
+  AGGRESSION_ACTIONS: ['bet', 'raise', 'all-in'],
+  PASSIVE_ACTIONS: ['call', 'check'],
+} as const;
+
+// Game flow constants  
+export const FLOW_CONSTANTS = {
+  CARDS_PER_PLAYER: 2,
+  FLOP_CARDS: 3,
+  TURN_CARDS: 1,
+  RIVER_CARDS: 1,
+  BURN_CARDS_PER_ROUND: 1,
+  MAX_COMMUNITY_CARDS: 5,
+  SHOWDOWN_MIN_PLAYERS: 2,
+  HEADS_UP_THRESHOLD: 2,
+} as const;
+
 // Combined game constants object
 export const GAME_CONSTANTS = {
   SUITS,
@@ -174,4 +249,10 @@ export const GAME_CONSTANTS = {
   STANDARD_BLIND_LEVELS,
   CHAT_MESSAGE_TYPES,
   CHAT_LIMITS,
+  ACTION_ERROR_CODES,
+  POSITION_NAMES,
+  RAKE_SETTINGS,
+  ACTION_TIMERS,
+  STATS_CONSTANTS,
+  FLOW_CONSTANTS,
 } as const;
