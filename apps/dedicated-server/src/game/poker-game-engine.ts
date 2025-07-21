@@ -6,7 +6,17 @@ import {
     PlayerState,
     Card,
     HandResult,
-    SidePot
+    SidePot,
+    TableConfig,
+    ActionValidationResult,
+    BettingOptions,
+    GameFlow,
+    GameTransition,
+    RakeCalculation,
+    GamePhase,
+    TransitionTrigger,
+    PotWinner,
+    BlindStructure
 } from '@poker-game/shared';
 import { IGameEngine } from '@poker-game/shared';
 import { GAME_CONSTANTS } from '@poker-game/shared';
@@ -23,37 +33,240 @@ export class PokerGameEngine implements IGameEngine {
         this.handEvaluator = new HandEvaluator();
     }
 
-    createGame(tableId: string, players: PlayerState[]): GameState {
+    createGame(tableConfig: TableConfig, players: PlayerState[]): GameState {
         if (players.length < 2) {
             throw new Error('At least 2 players required');
         }
 
         const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = Date.now();
+
+        // Initialize players with enhanced properties
+        const enhancedPlayers = new Map(players.map(p => [
+            p.id, 
+            {
+                ...p,
+                startingChips: p.chips,
+                totalInvested: 0,
+                holeCards: [],
+                seatNumber: p.position,
+                actionsThisRound: 0,
+                isInPosition: false,
+                timeBank: tableConfig.timeBankSeconds * 1000,
+                sessionStats: {
+                    handsPlayed: 0,
+                    handsWon: 0,
+                    totalProfit: 0,
+                    vpip: 0,
+                    pfr: 0,
+                    aggression: 0,
+                    showdownWinRate: 0,
+                    foldToBet: 0,
+                    foldToRaise: 0,
+                    cBetFreq: 0,
+                    threeBetFreq: 0,
+                    bigBlindsWon: 0
+                },
+                isObserver: false,
+                canRebuy: tableConfig.allowRebuy,
+                rebuyCount: 0
+            }
+        ]));
 
         const gameState: GameState = {
             id: gameId,
-            tableId,
-            phase: 'preflop',
+            tableId: tableConfig.id,
+            phase: 'preflop' as GamePhase,
             pot: 0,
             sidePots: [],
             communityCards: [],
+            burnCards: [],
             currentPlayer: null,
             dealerPosition: 0,
             smallBlindPosition: 1 % players.length,
             bigBlindPosition: 2 % players.length,
-            players: new Map(players.map(p => [p.id, { ...p }])),
-            blinds: { small: 10, big: 20 }, // Should come from table config
+            players: enhancedPlayers,
+            blinds: {
+                ...tableConfig.blinds,
+                level: 1,
+                nextLevelAt: tableConfig.blindLevelDuration ? now + (tableConfig.blindLevelDuration * 60 * 1000) : undefined,
+                timeRemaining: tableConfig.blindLevelDuration ? tableConfig.blindLevelDuration * 60 : undefined
+            },
+            bettingLimit: tableConfig.bettingLimit,
             round: 1,
+            handNumber: 1,
             lastAction: undefined,
+            actionHistory: [],
             actionStartTime: undefined,
-            actionTimeLimit: 30000 // 30 seconds
+            actionTimeLimit: tableConfig.timeLimit * 1000,
+            minRaise: tableConfig.blinds.big,
+            totalActions: 0,
+            isHeadsUp: players.length === 2,
+            rakeAmount: 0,
+            rakePercent: tableConfig.rakePercent,
+            gameType: tableConfig.gameType,
+            tableConfig: tableConfig,
+            stateVersion: 1,
+            createdAt: now,
+            updatedAt: now
         };
 
         // Set dealer, small blind, and big blind
         this.setPositions(gameState);
 
-        logger.info(`Game created: ${gameId} for table ${tableId}`);
+        logger.info(`Game created: ${gameId} for table ${tableConfig.id}`);
         return gameState;
+    }
+
+    validateAction(gameState: GameState, action: PlayerAction): ActionValidationResult {
+        // Enhanced validation with detailed error reporting
+        if (!action.playerId || !action.type) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.INVALID_ACTION_TYPE,
+                message: 'Invalid action: missing required fields',
+                suggestedActions: this.getValidActions(gameState, action.playerId || '')
+            };
+        }
+
+        const player = gameState.players.get(action.playerId);
+        if (!player) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.INVALID_PLAYER,
+                message: 'Player not found',
+                suggestedActions: []
+            };
+        }
+
+        if (gameState.currentPlayer !== action.playerId) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.NOT_YOUR_TURN,
+                message: 'Not your turn to act',
+                suggestedActions: []
+            };
+        }
+
+        // Check action timeout
+        if (gameState.actionStartTime && Date.now() - gameState.actionStartTime > gameState.actionTimeLimit) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.ACTION_TIMEOUT,
+                message: 'Action timeout exceeded',
+                suggestedActions: ['fold']
+            };
+        }
+
+        // Validate action types
+        const validActions = this.getValidActions(gameState, action.playerId);
+        if (!validActions.includes(action.type)) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.INVALID_ACTION_TYPE,
+                message: `Action '${action.type}' is not valid in current situation`,
+                suggestedActions: validActions
+            };
+        }
+
+        // Validate bet amounts
+        if ((action.type === 'bet' || action.type === 'raise') && (!action.amount || action.amount <= 0)) {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.INVALID_AMOUNT,
+                message: 'Bet/raise amount must be positive',
+                suggestedActions: validActions
+            };
+        }
+
+        // Validate timing
+        if (gameState.phase === 'finished' || gameState.phase === 'showdown') {
+            return {
+                isValid: false,
+                errorCode: GAME_CONSTANTS.ACTION_ERROR_CODES.GAME_FINISHED,
+                message: 'Cannot perform actions in current game phase',
+                suggestedActions: []
+            };
+        }
+
+        return { isValid: true };
+    }
+
+    getBettingOptions(gameState: GameState, playerId: string): BettingOptions {
+        const player = gameState.players.get(playerId);
+        if (!player || player.status !== 'active' || gameState.currentPlayer !== playerId) {
+            return {
+                canFold: false,
+                canCheck: false,
+                canCall: false,
+                canBet: false,
+                canRaise: false,
+                canAllIn: false,
+                callAmount: 0,
+                minBet: 0,
+                minRaise: 0,
+                maxRaise: 0,
+                potSize: gameState.pot
+            };
+        }
+
+        const players = Array.from(gameState.players.values());
+        const maxBet = Math.max(...players.map((p: PlayerState) => p.currentBet));
+        const callAmount = maxBet - player.currentBet;
+        const minBet = gameState.blinds.big;
+        const minRaise = Math.max(gameState.minRaise, maxBet * 2 - player.currentBet);
+        const maxRaise = player.chips + player.currentBet;
+
+        return {
+            canFold: true,
+            canCheck: callAmount === 0,
+            canCall: callAmount > 0 && callAmount < player.chips,
+            canBet: callAmount === 0 && player.chips >= minBet,
+            canRaise: callAmount > 0 && player.chips > callAmount && (player.chips + player.currentBet) >= minRaise,
+            canAllIn: player.chips > 0,
+            callAmount,
+            minBet,
+            minRaise,
+            maxRaise,
+            potSize: gameState.pot
+        };
+    }
+
+    calculateRake(gameState: GameState): RakeCalculation {
+        const potSize = gameState.pot;
+        const rakePercent = gameState.rakePercent;
+        const rakeCap = gameState.tableConfig.rakeCap;
+        
+        // No rake if pot is too small or no flop seen (no flop no drop rule)
+        if (potSize < GAME_CONSTANTS.RAKE_SETTINGS.MIN_RAKE_POT || 
+            (GAME_CONSTANTS.RAKE_SETTINGS.NO_FLOP_NO_DROP && gameState.phase === 'preflop')) {
+            return {
+                potSize,
+                rakePercent: 0,
+                rakeCap,
+                rakeAmount: 0,
+                netPot: potSize,
+                playersContributing: Array.from(gameState.players.keys()).filter(id => {
+                    const player = gameState.players.get(id);
+                    return player && player.totalBet > 0;
+                })
+            };
+        }
+
+        const rakeAmount = Math.min(potSize * (rakePercent / 100), rakeCap);
+        const netPot = potSize - rakeAmount;
+
+        return {
+            potSize,
+            rakePercent,
+            rakeCap,
+            rakeAmount,
+            netPot,
+            playersContributing: Array.from(gameState.players.keys()).filter(id => {
+                const player = gameState.players.get(id);
+                return player && player.totalBet > 0;
+            })
+        };
     }
 
     dealCards(gameState: GameState): GameState {
@@ -66,6 +279,7 @@ export class PokerGameEngine implements IGameEngine {
         for (const [playerId, player] of newState.players) {
             if (player.status === 'active') {
                 player.cards = this.deck.deal(2);
+                player.holeCards = [...player.cards]; // Store original hole cards
             }
         }
 
@@ -82,7 +296,10 @@ export class PokerGameEngine implements IGameEngine {
 
     processAction(gameState: GameState, action: PlayerAction): GameState {
         // Validate action first
-        this.validateAction(gameState, action);
+        const validation = this.validateAction(gameState, action);
+        if (!validation.isValid) {
+            throw new Error(`${validation.errorCode}: ${validation.message}`);
+        }
 
         const newState = { ...gameState };
         const player = newState.players.get(action.playerId);
@@ -126,9 +343,15 @@ export class PokerGameEngine implements IGameEngine {
                     throw new Error(`Unknown action type: ${action.type}`);
             }
 
-            // Update last action
+            // Update action tracking
             newState.lastAction = action;
+            newState.actionHistory.push(action);
+            newState.totalActions++;
+            newState.stateVersion++;
+            newState.updatedAt = Date.now();
             player.hasActed = true;
+            player.actionsThisRound++;
+            player.lastActionTime = Date.now();
         }
 
         // Move to next player or next phase
@@ -275,14 +498,26 @@ export class PokerGameEngine implements IGameEngine {
         switch (gameState.phase) {
             case 'preflop':
                 gameState.phase = 'flop';
+                // Burn one card before the flop
+                if (this.deck.getRemainingCount() > 0) {
+                    gameState.burnCards.push(...this.deck.deal(1));
+                }
                 gameState.communityCards = this.deck.deal(3);
                 break;
             case 'flop':
                 gameState.phase = 'turn';
+                // Burn one card before the turn
+                if (this.deck.getRemainingCount() > 0) {
+                    gameState.burnCards.push(...this.deck.deal(1));
+                }
                 gameState.communityCards.push(...this.deck.deal(1));
                 break;
             case 'turn':
                 gameState.phase = 'river';
+                // Burn one card before the river
+                if (this.deck.getRemainingCount() > 0) {
+                    gameState.burnCards.push(...this.deck.deal(1));
+                }
                 gameState.communityCards.push(...this.deck.deal(1));
                 break;
             case 'river':
@@ -468,28 +703,6 @@ export class PokerGameEngine implements IGameEngine {
         return betAmount / (potSize + betAmount);
     }
 
-    private validateAction(gameState: GameState, action: PlayerAction): void {
-        // Validate action structure
-        if (!action.playerId || !action.type) {
-            throw new Error('Invalid action: missing required fields');
-        }
-
-        // Validate action types
-        const validActions = ['fold', 'check', 'call', 'bet', 'raise', 'all-in'];
-        if (!validActions.includes(action.type)) {
-            throw new Error(`Invalid action type: ${action.type}`);
-        }
-
-        // Validate bet amounts
-        if ((action.type === 'bet' || action.type === 'raise') && (!action.amount || action.amount <= 0)) {
-            throw new Error('Bet/raise amount must be positive');
-        }
-
-        // Validate timing
-        if (gameState.phase === 'finished' || gameState.phase === 'showdown') {
-            throw new Error('Cannot perform actions in current game phase');
-        }
-    }
 
     private calculateSidePots(gameState: GameState): SidePot[] {
         const players = Array.from(gameState.players.values());
@@ -511,8 +724,12 @@ export class PokerGameEngine implements IGameEngine {
 
                 if (potAmount > 0) {
                     sidePots.push({
+                        id: `sidepot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         amount: potAmount,
-                        eligiblePlayers: eligiblePlayers.map(p => p.id)
+                        eligiblePlayers: eligiblePlayers.map(p => p.id),
+                        winners: [],
+                        isMainPot: sidePots.length === 0,
+                        maxContribution: level
                     });
                 }
 
@@ -575,11 +792,185 @@ export class PokerGameEngine implements IGameEngine {
         newState.pot = 0;
         newState.sidePots = [];
         newState.communityCards = [];
+        newState.burnCards = [];
         newState.currentPlayer = null;
         newState.lastAction = undefined;
+        newState.actionHistory = [];
         newState.actionStartTime = undefined;
+        newState.handNumber++;
+        newState.totalActions = 0;
+        newState.minRaise = newState.blinds.big;
+        newState.rakeAmount = 0;
+        newState.stateVersion++;
+        newState.updatedAt = Date.now();
         newState.round++;
 
         return newState;
+    }
+
+    getGameFlow(gameState: GameState): GameFlow {
+        const waitingPlayers = this.getWaitingPlayers(gameState);
+        const completedActions = new Map<string, PlayerAction>();
+        const pendingActions = new Map<string, BettingOptions>();
+
+        // Build completed actions map
+        for (const action of gameState.actionHistory) {
+            if (this.isActionInCurrentPhase(action, gameState.phase)) {
+                completedActions.set(action.playerId, action);
+            }
+        }
+
+        // Build pending actions map
+        for (const [playerId, player] of gameState.players) {
+            if (player.status === 'active' && !completedActions.has(playerId)) {
+                pendingActions.set(playerId, this.getBettingOptions(gameState, playerId));
+            }
+        }
+
+        return {
+            currentPhase: gameState.phase,
+            nextPhase: this.getNextPhase(gameState.phase),
+            canAdvancePhase: this.canAdvancePhase(gameState),
+            phaseActions: gameState.actionHistory.filter(a => this.isActionInCurrentPhase(a, gameState.phase)),
+            phaseDuration: Date.now() - (gameState.actionStartTime || gameState.createdAt),
+            phaseStartTime: gameState.actionStartTime || gameState.createdAt,
+            waitingForPlayers: waitingPlayers,
+            completedActions,
+            pendingActions
+        };
+    }
+
+    advancePhase(gameState: GameState): GameTransition {
+        const from = gameState.phase;
+        let to: GamePhase;
+        let trigger: TransitionTrigger;
+
+        // Determine next phase
+        switch (gameState.phase) {
+            case 'preflop':
+                to = 'flop';
+                trigger = 'betting-complete';
+                break;
+            case 'flop':
+                to = 'turn';
+                trigger = 'betting-complete';
+                break;
+            case 'turn':
+                to = 'river';
+                trigger = 'betting-complete';
+                break;
+            case 'river':
+                to = 'showdown';
+                trigger = 'showdown-required';
+                break;
+            case 'showdown':
+                to = 'finished';
+                trigger = 'game-finished';
+                break;
+            default:
+                to = 'finished';
+                trigger = 'manual';
+        }
+
+        const activePlayers = Array.from(gameState.players.values()).filter(p => 
+            p.status === 'active' || p.status === 'all-in'
+        );
+
+        return {
+            from,
+            to,
+            trigger,
+            timestamp: Date.now(),
+            playersInvolved: activePlayers.map(p => p.id),
+            data: {
+                communityCards: gameState.communityCards.length,
+                pot: gameState.pot,
+                activePlayers: activePlayers.length
+            }
+        };
+    }
+
+    canStartGame(players: PlayerState[]): boolean {
+        const activePlayers = players.filter(p => p.status === 'active' && p.chips > 0);
+        return activePlayers.length >= 2;
+    }
+
+    calculateEffectiveStack(gameState: GameState, playerId: string): number {
+        const player = gameState.players.get(playerId);
+        if (!player) return 0;
+
+        const otherPlayers = Array.from(gameState.players.values())
+            .filter(p => p.id !== playerId && (p.status === 'active' || p.status === 'all-in'))
+            .map(p => p.chips + p.currentBet)
+            .sort((a, b) => a - b);
+
+        if (otherPlayers.length === 0) return player.chips + player.currentBet;
+
+        // Effective stack is the amount that can actually be won/lost
+        return Math.min(player.chips + player.currentBet, otherPlayers[0] || 0);
+    }
+
+    getPlayerPosition(gameState: GameState, playerId: string): 'early' | 'middle' | 'late' | 'blinds' {
+        const player = gameState.players.get(playerId);
+        if (!player) return 'early';
+
+        const activePlayers = Array.from(gameState.players.values())
+            .filter(p => p.status === 'active')
+            .sort((a, b) => a.position - b.position);
+
+        const playerIndex = activePlayers.findIndex(p => p.id === playerId);
+        const totalPlayers = activePlayers.length;
+
+        // Small blind and big blind are always blinds position
+        if (player.isSmallBlind || player.isBigBlind) {
+            return 'blinds';
+        }
+
+        // Calculate position relative to dealer
+        const dealerIndex = activePlayers.findIndex(p => p.isDealer);
+        let relativePosition = (playerIndex - dealerIndex - 1 + totalPlayers) % totalPlayers;
+
+        if (totalPlayers <= 6) {
+            if (relativePosition <= 1) return 'early';
+            if (relativePosition <= 3) return 'middle';
+            return 'late';
+        } else {
+            if (relativePosition <= 2) return 'early';
+            if (relativePosition <= 5) return 'middle';
+            return 'late';
+        }
+    }
+
+    private canAdvancePhase(gameState: GameState): boolean {
+        return this.isBettingRoundComplete(gameState);
+    }
+
+    private getNextPhase(currentPhase: GamePhase): GamePhase | null {
+        switch (currentPhase) {
+            case 'preflop': return 'flop';
+            case 'flop': return 'turn';
+            case 'turn': return 'river';
+            case 'river': return 'showdown';
+            case 'showdown': return 'finished';
+            default: return null;
+        }
+    }
+
+    private getWaitingPlayers(gameState: GameState): string[] {
+        const waitingPlayers: string[] = [];
+        
+        for (const [playerId, player] of gameState.players) {
+            if (player.status === 'active' && !player.hasActed) {
+                waitingPlayers.push(playerId);
+            }
+        }
+
+        return waitingPlayers;
+    }
+
+    private isActionInCurrentPhase(action: PlayerAction, phase: GamePhase): boolean {
+        // This is a simplified check - in a real implementation, you'd want to track
+        // which phase each action occurred in
+        return true; // For now, assume all actions in history are relevant
     }
 }
