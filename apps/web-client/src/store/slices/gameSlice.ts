@@ -1,8 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { GameState, PlayerState, PlayerAction, Card } from '@shared/types/game.types';
+import { GameState, PlayerState, PlayerAction, Card, GamePhase } from '@shared/types/game.types';
 
-interface GameSliceState {
-    currentGame: GameState | null;
+interface GameSliceState extends GameState {
     isPlaying: boolean;
     myCards: Card[];
     myPosition: number | null;
@@ -15,7 +14,69 @@ interface GameSliceState {
 }
 
 const initialState: GameSliceState = {
-    currentGame: null,
+    id: '',
+    tableId: '',
+    phase: 'preflop' as GamePhase,
+    pot: 0,
+    sidePots: [],
+    communityCards: [],
+    burnCards: [],
+    currentPlayer: null,
+    dealerPosition: 0,
+    smallBlindPosition: 0,
+    bigBlindPosition: 0,
+    players: new Map(),
+    blinds: {
+        small: 0,
+        big: 0,
+    },
+    bettingLimit: 'no-limit',
+    round: 0,
+    handNumber: 0,
+    actionHistory: [],
+    actionTimeLimit: 30,
+    minRaise: 0,
+    totalActions: 0,
+    isHeadsUp: false,
+    rakeAmount: 0,
+    rakePercent: 0,
+    gameType: 'texas-holdem',
+    tableConfig: {
+        id: '',
+        name: '',
+        maxPlayers: 9,
+        minPlayers: 2,
+        blinds: {
+            small: 0,
+            big: 0,
+        },
+        buyIn: {
+            min: 0,
+            max: 0,
+            defaultAmount: 0,
+            allowShortBuy: false,
+            shortBuyMin: 0,
+        },
+        gameType: 'texas-holdem',
+        bettingLimit: 'no-limit',
+        isPrivate: false,
+        timeLimit: 30,
+        timeBankSeconds: 60,
+        rakePercent: 0,
+        rakeCap: 0,
+        allowRebuy: true,
+        rebuyLimit: 3,
+        allowObservers: true,
+        autoStartMinPlayers: 2,
+        tags: [],
+        createdBy: '',
+        createdAt: 0,
+        status: 'waiting',
+        isTournament: false,
+    },
+    stateVersion: 0,
+    createdAt: 0,
+    updatedAt: 0,
     isPlaying: false,
     myCards: [],
     myPosition: null,
@@ -32,13 +93,17 @@ const gameSlice = createSlice({
     initialState,
     reducers: {
         setCurrentGame: (state, action: PayloadAction<GameState>) => {
-            state.currentGame = action.payload;
-            state.isPlaying = true;
+            return {
+                ...state,
+                ...action.payload,
+                isPlaying: true,
+            };
         },
         updateGameState: (state, action: PayloadAction<Partial<GameState>>) => {
-            if (state.currentGame) {
-                state.currentGame = { ...state.currentGame, ...action.payload };
-            }
+            return {
+                ...state,
+                ...action.payload,
+            };
         },
         setMyCards: (state, action: PayloadAction<Card[]>) => {
             state.myCards = action.payload;
@@ -74,22 +139,13 @@ const gameSlice = createSlice({
             state.dealAnimation = false;
         },
         updatePlayer: (state, action: PayloadAction<{ playerId: string; updates: Partial<PlayerState> }>) => {
-            if (state.currentGame && state.currentGame.players.has(action.payload.playerId)) {
-                const player = state.currentGame.players.get(action.payload.playerId)!;
-                state.currentGame.players.set(action.payload.playerId, { ...player, ...action.payload.updates });
+            if (state.players.has(action.payload.playerId)) {
+                const player = state.players.get(action.payload.playerId)!;
+                state.players.set(action.payload.playerId, { ...player, ...action.payload.updates });
             }
         },
-        leaveGame: (state) => {
-            state.currentGame = null;
-            state.isPlaying = false;
-            state.myCards = [];
-            state.myPosition = null;
-            state.canAct = false;
-            state.validActions = [];
-            state.handHistory = [];
-            state.showCards = false;
-            state.potWinAnimation = false;
-            state.dealAnimation = false;
+        leaveGame: () => {
+            return initialState;
         },
     },
 });

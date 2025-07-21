@@ -13,7 +13,8 @@ import {
     SessionPlayer,
     PlayerAction,
     BettingLimit,
-    GameType
+    GameType,
+    HandWinner
 } from '@poker-game/shared';
 
 async function runUnlimitedHoldemExample() {
@@ -338,7 +339,7 @@ function setupEventListeners(orchestrator: PokerSessionOrchestrator) {
     });
 
     orchestrator.on('handCompleted', ({ session, hand }) => {
-        const winners = hand.winners.map(winner => `${winner.playerId}($${winner.winAmount})`).join(', ');
+        const winners = hand.winners.map((winner: HandWinner) => `${winner.playerId}($${winner.winAmount})`).join(', ');
         console.log(`✅ Hand #${hand.handNumber} completed - Winners: ${winners} - Pot: $${hand.finalPot} - Rake: $${hand.rake}`);
     });
 

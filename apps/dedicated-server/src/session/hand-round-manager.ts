@@ -7,7 +7,9 @@ import {
     HandStatus,
     HandWinner,
     BettingRound,
-    Card
+    Card,
+    TableConfig,
+    SessionConfig
 } from '@poker-game/shared';
 import { IHandRoundManager } from '@poker-game/shared';
 import { PokerGameEngine } from '../game/poker-game-engine';
@@ -50,7 +52,7 @@ export class HandRoundManager implements IHandRoundManager {
         };
 
         this.hands.set(handId, handRound);
-        
+
         // Track session hands
         if (!this.sessionHands.has(sessionId)) {
             this.sessionHands.set(sessionId, []);
@@ -75,16 +77,42 @@ export class HandRoundManager implements IHandRoundManager {
             // Initialize game state with session players
             const session = this.getSessionForHand(hand);
             const activePlayers = this.getActivePlayersForHand(session);
-            
+
             if (activePlayers.length < 2) {
                 throw new Error(`Cannot deal hand: insufficient active players (${activePlayers.length})`);
             }
 
             // Convert session players to game players
             const gamePlayers = this.convertToGamePlayers(activePlayers);
-            
+
+            // Convert session config to table config
+            const tableConfig: TableConfig = {
+                id: session.id,
+                name: `Table ${session.id}`,
+                maxPlayers: session.config.maxPlayers,
+                minPlayers: session.config.minPlayers,
+                blinds: session.config.blindStructure,
+                buyIn: session.config.buyInLimits,
+                gameType: session.config.gameType,
+                bettingLimit: session.config.bettingLimit,
+                isPrivate: false,
+                timeLimit: session.config.timeSettings.actionTimeLimit,
+                timeBankSeconds: session.config.timeSettings.timeBankDefault,
+                rakePercent: session.config.rakeStructure.percentage,
+                rakeCap: session.config.rakeStructure.capAmount,
+                allowRebuy: session.config.allowRebuy,
+                rebuyLimit: session.config.rebuyLimits.maxRebuys,
+                allowObservers: session.config.allowObservers,
+                autoStartMinPlayers: session.config.minPlayers,
+                tags: [],
+                createdBy: '',
+                createdAt: session.startTime,
+                status: 'active',
+                isTournament: session.sessionType === 'tournament'
+            };
+
             // Create game state
-            hand.gameState = this.gameEngine.createGame(session.config, gamePlayers);
+            hand.gameState = this.gameEngine.createGame(tableConfig, gamePlayers);
             hand.participants = activePlayers.map(p => p.playerId);
             hand.dealerPosition = session.dealerPosition;
             hand.smallBlindPosition = session.smallBlindPosition;
@@ -92,7 +120,7 @@ export class HandRoundManager implements IHandRoundManager {
 
             // Deal cards
             hand.gameState = this.gameEngine.dealCards(hand.gameState);
-            
+
             // Store player hands
             for (const [playerId, player] of hand.gameState.players) {
                 hand.playerHands.set(playerId, [...player.cards]);
@@ -155,7 +183,7 @@ export class HandRoundManager implements IHandRoundManager {
 
             // Update hand phase and status
             hand.phase = hand.gameState.phase;
-            
+
             if (hand.gameState.phase === 'showdown') {
                 hand.status = 'showdown';
                 hand.showdownReached = true;

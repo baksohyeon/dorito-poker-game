@@ -3,20 +3,23 @@ import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { socketService } from '../services/socketService';
-import { PlayingCard } from '../components/game/PlayingCard';
-import { ActionButtons } from '../components/game/ActionButtons';
-import { PokerChip } from '../components/game/PokerChip';
-import { AIAnalysisModal } from '../components/ui/modals/AIAnalysisModal';
-import { HandHistoryModal } from '../components/ui/modals/HandHistoryModal';
+import PlayingCard from '../components/game/PlayingCard';
+import ActionButtons from '../components/game/ActionButtons';
+import PokerChip from '../components/game/PokerChip';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Play, Pause, Volume2, VolumeX, MessageCircle } from 'lucide-react';
+import { formatChips } from '../utils/formatting';
 
 const TablePage: React.FC = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const gameState = useSelector((state: RootState) => state.game);
+  const { user } = useSelector((state: RootState) => state.auth);
   const [isConnected, setIsConnected] = useState(false);
-  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
-  const [showHandHistory, setShowHandHistory] = useState(false);
-  const [spectatorMode, setSpectatorMode] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [gamePaused, setGamePaused] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showChat, setShowChat] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; username: string; message: string }>>([]);
 
   useEffect(() => {
     if (tableId) {
@@ -24,33 +27,9 @@ const TablePage: React.FC = () => {
       setIsConnected(true);
     }
     return () => {
-      if (tableId) {
-        socketService.leaveTable(tableId);
-      }
+      socketService.leaveTable();
     };
   }, [tableId]);
-
-  // Simulate game progression
-  useEffect(() => {
-    if (!gameState || gameState.stage === 'waiting') return;
-
-    const gameProgression = () => {
-      // This part of the logic needs to be adapted to use the actual game state
-      // For now, it's a placeholder to simulate progression
-      // In a real scenario, this would involve sending actions to the backend
-      // and receiving updated game state from the socket.
-      // For demonstration, we'll just update the stage and community cards
-      // based on a simple progression.
-      // This effect should ideally be removed or replaced with actual socket listeners.
-      // For now, it's kept to show how the game state evolves.
-      // The original code had a setInterval for game progression, which is removed.
-      // This effect is now a placeholder for the progression logic.
-    };
-
-    // This interval is no longer needed as game progression is handled by socket
-    // const interval = setInterval(gameProgression, 1000);
-    // return () => clearInterval(interval);
-  }, [gameState]);
 
   // Action handlers
   const handlePlayerAction = (action: string, amount?: number) => {
@@ -71,6 +50,13 @@ const TablePage: React.FC = () => {
     // This part needs to be adapted to send chat messages to the backend
     // For now, it's a placeholder.
     // In a real scenario, you would send the message to the socket.
+    const newMessage = {
+      id: Date.now().toString(),
+      username: user?.username || 'Guest',
+      message: message.trim()
+    };
+    setChatMessages(prev => [...prev, newMessage]);
+    setChatInput('');
   };
 
   const handleLeaveTable = () => {
@@ -81,12 +67,14 @@ const TablePage: React.FC = () => {
   };
 
   const getCurrentPlayer = () => {
-    return gameState?.players.find(p => p.id === user?.id);
+    if (!gameState || !user) return null;
+    const player = Array.from(gameState.players.values()).find(p => p.id === user.id);
+    return player || null;
   };
 
   const getPlayerPosition = (position: number) => {
     // Calculate CSS position for player around the table
-    const angle = (position / (gameState?.maxPlayers || 9)) * 2 * Math.PI - Math.PI / 2;
+    const angle = (position / (gameState.tableConfig.maxPlayers || 9)) * 2 * Math.PI - Math.PI / 2;
     const radius = 200;
     const x = Math.cos(angle) * radius;
     const y = Math.sin(angle) * radius;
@@ -100,17 +88,17 @@ const TablePage: React.FC = () => {
 
   const getValidActions = () => {
     const currentPlayer = getCurrentPlayer();
-    if (!currentPlayer || currentPlayer.hasFolded) return [];
+    if (!currentPlayer || currentPlayer.status === 'folded') return [];
 
     const actions = ['fold'];
     
-    if (gameState?.currentBet === 0) {
+    if (gameState.minRaise === 0) {
       actions.push('check', 'bet');
     } else {
       actions.push('call', 'raise');
     }
 
-    if (currentPlayer.chips <= (gameState?.currentBet || 0)) {
+    if (currentPlayer.chips <= gameState.minRaise) {
       actions.push('all-in');
     }
 
@@ -129,24 +117,6 @@ const TablePage: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-poker-dark-900 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 mb-4">
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={() => handleLeaveTable()}
-              className="poker-button poker-button-secondary"
-            >
-              Return to Lobby
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!gameState) {
     return (
       <div className="min-h-screen bg-poker-dark-900 flex items-center justify-center">
@@ -160,7 +130,7 @@ const TablePage: React.FC = () => {
 
   const currentPlayer = getCurrentPlayer();
   const isPlayerTurn = gameState.currentPlayer === user?.id;
-  const isPlayerSeated = !!currentPlayer && !currentPlayer.isSittingOut;
+  const isPlayerSeated = !!currentPlayer && currentPlayer.status !== 'sitting-out';
   const validActions = getValidActions();
 
   return (
@@ -180,14 +150,14 @@ const TablePage: React.FC = () => {
             <div className="text-white">
               <span className="font-semibold">Table {tableId}</span>
               <span className="text-gray-400 ml-2">
-                Hand #{gameState.handNumber} • {gameState.players.filter(p => !p.isSittingOut).length}/{gameState.maxPlayers}
+                Hand #{gameState.handNumber} • {Array.from(gameState.players.values()).filter(p => p.status !== 'sitting-out').length}/{gameState.tableConfig.maxPlayers}
               </span>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
             <div className="text-sm text-gray-300">
-              Blinds: {formatChips(gameState.smallBlind)}/{formatChips(gameState.bigBlind)}
+              Blinds: {formatChips(gameState.blinds.small)}/{formatChips(gameState.blinds.big)}
             </div>
             
             <button
@@ -266,7 +236,7 @@ const TablePage: React.FC = () => {
             </div>
 
             {/* Players around the table */}
-            {gameState.players.map((player) => (
+            {Array.from(gameState.players.values()).map((player) => (
               <motion.div
                 key={player.id}
                 className="absolute"
@@ -279,7 +249,7 @@ const TablePage: React.FC = () => {
                   relative bg-poker-dark-800 rounded-lg border-2 p-3 min-w-[120px]
                   ${player.id === gameState.currentPlayer ? 'border-poker-green-400 shadow-lg shadow-poker-green-400/50' : 'border-gray-600'}
                   ${player.id === user?.id ? 'ring-2 ring-blue-400' : ''}
-                  ${player.hasFolded ? 'opacity-50' : ''}
+                  ${player.status === 'folded' ? 'opacity-50' : ''}
                 `}>
                   {/* Dealer Button */}
                   {player.isDealer && (
@@ -300,7 +270,7 @@ const TablePage: React.FC = () => {
                   {/* Player Info */}
                   <div className="text-center">
                     <div className="text-white font-semibold text-sm mb-1">
-                      {player.username}
+                      {player.name}
                       {player.id === user?.id && <span className="text-blue-400 ml-1">(You)</span>}
                     </div>
                     
@@ -309,9 +279,9 @@ const TablePage: React.FC = () => {
                     </div>
 
                     {/* Player cards */}
-                    {player.holeCards && player.id === user?.id ? (
+                    {player.cards && player.id === user?.id ? (
                       <div className="flex space-x-1 justify-center mb-2">
-                        {player.holeCards.map((card, index) => (
+                        {player.cards.map((card, index) => (
                           <PlayingCard 
                             key={index}
                             card={card} 
@@ -319,9 +289,9 @@ const TablePage: React.FC = () => {
                           />
                         ))}
                       </div>
-                    ) : player.holeCards ? (
+                    ) : player.cards ? (
                       <div className="flex space-x-1 justify-center mb-2">
-                        {player.holeCards.map((_, index) => (
+                        {player.cards.map((_, index) => (
                           <div 
                             key={index}
                             className="w-8 h-12 bg-blue-800 rounded border border-blue-600"
@@ -343,29 +313,29 @@ const TablePage: React.FC = () => {
                     )}
 
                     {/* Last action */}
-                    {player.lastAction && (
+                    {player.status !== 'active' && (
                       <div className="text-xs text-gray-400 mt-1 capitalize">
-                        {player.lastAction}
+                        {player.status}
                       </div>
                     )}
 
                     {/* Turn timer */}
-                    {player.id === gameState.currentPlayer && player.timeLeft && (
+                    {player.id === gameState.currentPlayer && gameState.actionTimeLimit && (
                       <div className="mt-1">
                         <div className="w-full bg-gray-600 rounded-full h-1">
                           <div 
                             className="bg-poker-green-400 h-1 rounded-full transition-all duration-1000"
-                            style={{ width: `${(player.timeLeft / 30) * 100}%` }}
+                            style={{ width: `${(gameState.actionTimeLimit / 30) * 100}%` }}
                           />
                         </div>
                         <div className="text-xs text-white mt-1">
-                          {player.timeLeft}s
+                          {gameState.actionTimeLimit}s
                         </div>
                       </div>
                     )}
 
                     {/* Fold indicator */}
-                    {player.hasFolded && (
+                    {player.status === 'folded' && (
                       <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
                         <span className="text-red-400 font-bold text-sm">FOLDED</span>
                       </div>
@@ -407,13 +377,13 @@ const TablePage: React.FC = () => {
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendChat()}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendChat(chatInput)}
                     placeholder="Type a message..."
                     className="flex-1 poker-input text-sm"
                     maxLength={100}
                   />
                   <button
-                    onClick={handleSendChat}
+                    onClick={() => handleSendChat(chatInput)}
                     disabled={!chatInput.trim()}
                     className="poker-button poker-button-primary text-sm px-3"
                   >
@@ -431,9 +401,9 @@ const TablePage: React.FC = () => {
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
           <ActionButtons
             validActions={validActions}
-            currentBet={gameState.currentBet}
+            currentBet={gameState.minRaise}
             minRaise={gameState.minRaise}
-            maxRaise={gameState.maxRaise}
+            maxRaise={gameState.minRaise * 4}
             playerChips={currentPlayer?.chips || 0}
             onAction={handlePlayerAction}
             disabled={gamePaused}
@@ -445,39 +415,15 @@ const TablePage: React.FC = () => {
       <div className="absolute top-20 left-6 z-20">
         <div className="bg-poker-dark-800/90 backdrop-blur rounded-lg px-4 py-2 border border-gray-600">
           <div className="text-white font-semibold capitalize">
-            {gameState.stage === 'waiting' ? 'Waiting for players' : gameState.stage}
+            {gameState.phase === 'preflop' ? 'Waiting for players' : gameState.phase}
           </div>
-          {gameState.stage !== 'waiting' && (
+          {gameState.phase !== 'preflop' && (
             <div className="text-gray-400 text-sm">
-              {gameState.players.filter(p => p.isActive && !p.isSittingOut).length} active players
+              {Array.from(gameState.players.values()).filter(p => p.status === 'active').length} active players
             </div>
           )}
         </div>
       </div>
-
-      {/* Spectator Mode Indicator */}
-      {spectatorMode && (
-        <div className="absolute top-20 right-6 z-20">
-          <div className="bg-blue-600/90 backdrop-blur rounded-lg px-4 py-2 border border-blue-500">
-            <div className="flex items-center space-x-2 text-white">
-              <Eye className="w-4 h-4" />
-              <span className="font-semibold">Spectating</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Game Paused Indicator */}
-      {gamePaused && (
-        <div className="absolute top-20 right-6 z-20">
-          <div className="bg-yellow-600/90 backdrop-blur rounded-lg px-4 py-2 border border-yellow-500">
-            <div className="flex items-center space-x-2 text-white">
-              <Pause className="w-4 h-4" />
-              <span className="font-semibold">Game Paused</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

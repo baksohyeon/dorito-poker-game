@@ -37,12 +37,13 @@ function App() {
 
   useEffect(() => {
     // Connect to socket for guest access
+    socketService.setDispatch(dispatch);
     socketService.connect();
 
     return () => {
       socketService.disconnect();
     };
-  }, []);
+  }, [dispatch]);
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>

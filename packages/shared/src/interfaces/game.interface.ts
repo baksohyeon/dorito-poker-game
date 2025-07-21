@@ -29,6 +29,51 @@ import {
   SidePot,
 } from '../types';
 
+export type {
+  GameState,
+  PlayerState,
+  Card,
+  PlayerAction,
+  HandResult,
+  GameResult,
+  GameWinner,
+  PlayerPosition,
+  BettingRound,
+  GameHistory,
+  HandHistory,
+  TableConfig,
+  BuyInConfig,
+  TableStatus,
+  GameFlow,
+  GameTransition,
+  TransitionTrigger,
+  PokerGameEvents,
+  ActionTimer,
+  RakeCalculation,
+  Table,
+  PokerSession,
+  HandRound,
+  SessionPlayer,
+  SessionConfig,
+  SessionStatistics,
+  HandWinner,
+  RakeStructure,
+  RebuyLimits,
+  GamePhase,
+  GameType,
+  BettingLimit,
+  BlindStructure,
+  PlayerStatus,
+  PlayerSessionStats,
+  SidePot,
+  PotWinner,
+  HandType,
+  SessionType,
+  SessionStatus,
+  HandStatus,
+  TimeSettings
+} from '../types/game.types';
+
 export interface IGameEngine {
   createGame(tableConfig: TableConfig, players: PlayerState[]): GameState;
   processAction(gameState: GameState, action: PlayerAction): GameState;
