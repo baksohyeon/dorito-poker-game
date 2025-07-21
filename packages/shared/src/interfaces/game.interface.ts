@@ -13,6 +13,10 @@ import {
   GameTransition,
   RakeCalculation,
   ActionTimer,
+  BettingLimit,
+  GamePhase,
+  GameType,
+  PlayerSessionStats,
 } from '../types';
 
 export interface IGameEngine {

@@ -75,4 +75,32 @@ export class Deck implements IDeck {
 
         return false;
     }
+
+    burn(count: number = 1): Card[] {
+        return this.deal(count);
+    }
+
+    getAllCards(): Card[] {
+        return [...this.cards];
+    }
+
+    getShuffledDeck(): Card[] {
+        const shuffled = [...this.originalDeck];
+        // Use same shuffle logic as the shuffle method
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    canDeal(count: number): boolean {
+        return this.cards.length >= count;
+    }
+
+    validateDeck(): boolean {
+        return this.cards.length >= 0 && 
+               this.cards.length <= 52 &&
+               new Set(this.cards.map(c => `${c.suit}_${c.rank}`)).size === this.cards.length;
+    }
 }

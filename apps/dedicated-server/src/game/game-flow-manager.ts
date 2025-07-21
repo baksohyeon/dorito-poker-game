@@ -120,7 +120,7 @@ export class GameFlowManager implements IGameFlow {
 
         return {
             currentPhase: gameState.phase,
-            nextPhase: this.getNextPhase(gameState.phase),
+            nextPhase: this.getNextPhase(gameState.phase) || undefined,
             canAdvancePhase: this.canAdvancePhase(gameState),
             phaseActions,
             phaseDuration: now - (gameState.actionStartTime || gameState.createdAt),

@@ -1,5 +1,5 @@
 // apps/dedicated-server/src/game/hand-evaluator.ts
-import { Card, HandResult } from '@poker-game/shared';
+import { Card, HandResult, HandType } from '@poker-game/shared';
 import { GAME_CONSTANTS } from '@poker-game/shared';
 import { IHandEvaluator } from '@poker-game/shared';
 
@@ -71,101 +71,51 @@ export class HandEvaluator implements IHandEvaluator {
 
         // Royal flush
         if (isFlush && isStraight && straightHigh === 14) {
-            return {
-                type: 'royal-flush',
-                rank: 10,
-                cards: sortedCards,
-                description: 'Royal Flush'
-            };
+            return this.createHandResult('royal-flush', 10, sortedCards, 'Royal Flush');
         }
 
         // Straight flush
         if (isFlush && isStraight) {
-            return {
-                type: 'straight-flush',
-                rank: 9,
-                cards: sortedCards,
-                description: `Straight Flush, ${this.getRankName(straightHigh)} high`
-            };
+            return this.createHandResult('straight-flush', 9, sortedCards, `Straight Flush, ${this.getRankName(straightHigh)} high`);
         }
 
         // Four of a kind
         if (counts[0] === 4) {
-            return {
-                type: 'four-of-a-kind',
-                rank: 8,
-                cards: sortedCards,
-                description: `Four of a Kind, ${this.getRankName(sortedCards[0].value)}`
-            };
+            return this.createHandResult('four-of-a-kind', 8, sortedCards, `Four of a Kind, ${this.getRankName(sortedCards[0].value)}`);
         }
 
         // Full house
         if (counts[0] === 3 && counts[1] === 2) {
-            return {
-                type: 'full-house',
-                rank: 7,
-                cards: sortedCards,
-                description: `Full House`
-            };
+            return this.createHandResult('full-house', 7, sortedCards, `Full House`);
         }
 
         // Flush
         if (isFlush) {
-            return {
-                type: 'flush',
-                rank: 6,
-                cards: sortedCards,
-                description: `Flush, ${this.getRankName(sortedCards[0].value)} high`
-            };
+            return this.createHandResult('flush', 6, sortedCards, `Flush, ${this.getRankName(sortedCards[0].value)} high`);
         }
 
         // Straight
         if (isStraight) {
-            return {
-                type: 'straight',
-                rank: 5,
-                cards: sortedCards,
-                description: `Straight, ${this.getRankName(straightHigh)} high`
-            };
+            return this.createHandResult('straight', 5, sortedCards, `Straight, ${this.getRankName(straightHigh)} high`);
         }
 
         // Three of a kind
         if (counts[0] === 3) {
-            return {
-                type: 'three-of-a-kind',
-                rank: 4,
-                cards: sortedCards,
-                description: `Three of a Kind`
-            };
+            return this.createHandResult('three-of-a-kind', 4, sortedCards, `Three of a Kind`);
         }
 
         // Two pair
         if (counts[0] === 2 && counts[1] === 2) {
-            return {
-                type: 'two-pair',
-                rank: 3,
-                cards: sortedCards,
-                description: `Two Pair`
-            };
+            return this.createHandResult('two-pair', 3, sortedCards, `Two Pair`);
         }
 
         // Pair
         if (counts[0] === 2) {
-            return {
-                type: 'pair',
-                rank: 2,
-                cards: sortedCards,
-                description: `Pair`
-            };
+            return this.createHandResult('pair', 2, sortedCards, `Pair`);
         }
 
         // High card
-        return {
-            type: 'high-card',
-            rank: 1,
-            cards: sortedCards,
-            description: `High Card, ${this.getRankName(sortedCards[0].value)} high`
-        };
+        return this.createHandResult('high-card', 1, sortedCards, `High Card, ${this.getRankName(sortedCards[0].value)} high`);
     }
 
     private isFlush(cards: Card[]): boolean {
@@ -238,5 +188,175 @@ export class HandEvaluator implements IHandEvaluator {
         }
         
         return result;
+    }
+
+    calculateHandStrength(playerCards: Card[], communityCards: Card[]): number {
+        const allCards = [...playerCards, ...communityCards];
+        const handResult = this.evaluateHand(allCards);
+        
+        // Convert hand rank to strength percentage (higher is better)
+        const maxRank = GAME_CONSTANTS.HAND_RANKINGS.ROYAL_FLUSH;
+        return (handResult.rank / maxRank) * 100;
+    }
+
+    getHandEquity(playerCards: Card[], communityCards: Card[], opponents: number): number {
+        // Simplified equity calculation - in production, use Monte Carlo simulation
+        const handStrength = this.calculateHandStrength(playerCards, communityCards);
+        const adjustedStrength = handStrength / (1 + (opponents * 0.1)); // Adjust for opponents
+        return Math.min(100, Math.max(0, adjustedStrength));
+    }
+
+    getRankDescription(handResult: HandResult): string {
+        const descriptions: Record<HandType, string> = {
+            'royal-flush': 'Royal Flush - Ace high straight flush',
+            'straight-flush': `Straight Flush - ${handResult.cards[0].rank} high`,
+            'four-of-a-kind': `Four of a Kind - ${this.getRankName(handResult.cards[0].value)}s`,
+            'full-house': `Full House - ${this.getRankName(handResult.cards[0].value)}s over ${this.getRankName(handResult.cards[3].value)}s`,
+            'flush': `Flush - ${handResult.cards[0].rank} high`,
+            'straight': `Straight - ${handResult.cards[0].rank} high`,
+            'three-of-a-kind': `Three of a Kind - ${this.getRankName(handResult.cards[0].value)}s`,
+            'two-pair': `Two Pair - ${this.getRankName(handResult.cards[0].value)}s and ${this.getRankName(handResult.cards[2].value)}s`,
+            'pair': `Pair of ${this.getRankName(handResult.cards[0].value)}s`,
+            'high-card': `High Card - ${handResult.cards[0].rank}`
+        };
+        
+        return descriptions[handResult.type] || handResult.description;
+    }
+
+    getShortDescription(handResult: HandResult): string {
+        const shortDescriptions: Record<HandType, string> = {
+            'royal-flush': 'Royal Flush',
+            'straight-flush': 'Straight Flush',
+            'four-of-a-kind': 'Four of a Kind',
+            'full-house': 'Full House',
+            'flush': 'Flush',
+            'straight': 'Straight',
+            'three-of-a-kind': 'Three of a Kind',
+            'two-pair': 'Two Pair',
+            'pair': 'Pair',
+            'high-card': 'High Card'
+        };
+        
+        return shortDescriptions[handResult.type] || handResult.type;
+    }
+
+    isDrawPossible(communityCards: Card[], drawType: 'straight' | 'flush' | 'full-house'): boolean {
+        switch (drawType) {
+            case 'flush':
+                return this.isFlushDrawPossible(communityCards);
+            case 'straight':
+                return this.isStraightDrawPossible(communityCards);
+            case 'full-house':
+                return this.isFullHouseDrawPossible(communityCards);
+            default:
+                return false;
+        }
+    }
+
+    countOuts(playerCards: Card[], communityCards: Card[]): number {
+        const allCards = [...playerCards, ...communityCards];
+        const usedCards = new Set(allCards.map(c => `${c.suit}_${c.rank}`));
+        
+        let outs = 0;
+        
+        // Create all possible remaining cards
+        const remainingCards: Card[] = [];
+        for (const suit of GAME_CONSTANTS.SUITS) {
+            for (const rank of GAME_CONSTANTS.RANKS) {
+                if (!usedCards.has(`${suit}_${rank}`)) {
+                    remainingCards.push({
+                        suit: suit as any,
+                        rank: rank as any,
+                        value: GAME_CONSTANTS.CARD_VALUES[rank]
+                    });
+                }
+            }
+        }
+        
+        const currentHand = this.evaluateHand(allCards);
+        
+        // Count how many cards improve the hand
+        for (const card of remainingCards) {
+            const newHand = this.evaluateHand([...allCards, card]);
+            if (newHand.rank > currentHand.rank) {
+                outs++;
+            }
+        }
+        
+        return outs;
+    }
+
+    private isFlushDrawPossible(communityCards: Card[]): boolean {
+        const suitCounts = this.getSuitCounts(communityCards);
+        return Object.values(suitCounts).some(count => count >= 3);
+    }
+
+    private isStraightDrawPossible(communityCards: Card[]): boolean {
+        const uniqueValues = [...new Set(communityCards.map(c => c.value))].sort((a, b) => a - b);
+        
+        // Check for gaps that could be filled for a straight
+        for (let i = 0; i < uniqueValues.length - 2; i++) {
+            const span = uniqueValues[i + 2] - uniqueValues[i];
+            if (span <= 4) return true; // Potential straight draw
+        }
+        
+        return false;
+    }
+
+    private isFullHouseDrawPossible(communityCards: Card[]): boolean {
+        const rankCounts = this.getRankCounts(communityCards);
+        const counts = Object.values(rankCounts);
+        
+        // Need at least one pair to have full house draw potential
+        return counts.some(count => count >= 2);
+    }
+
+    private getSuitCounts(cards: Card[]): Record<string, number> {
+        const suitCounts: Record<string, number> = {};
+        
+        for (const card of cards) {
+            suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+        }
+        
+        return suitCounts;
+    }
+
+    private createHandResult(type: HandType, rank: number, cards: Card[], description: string, kickers: Card[] = []): HandResult {
+        const strength = this.calculateNumericStrength(cards);
+        const tieBreaker = cards.map(c => c.value);
+        
+        return {
+            type,
+            rank,
+            strength,
+            cards,
+            playingCards: [...cards],
+            kickers,
+            description,
+            shortDescription: this.getShortDescription({ type } as HandResult),
+            rawRank: rank,
+            isWinner: false,
+            tieBreaker,
+            handValue: cards.map(c => `${c.rank}${this.getSuitSymbol(c.suit)}`).join(' ')
+        };
+    }
+
+    private calculateNumericStrength(cards: Card[]): number {
+        // Create a unique numeric strength for hand comparison
+        let strength = 0;
+        for (let i = 0; i < cards.length; i++) {
+            strength += cards[i].value * Math.pow(100, 4 - i);
+        }
+        return strength;
+    }
+
+    private getSuitSymbol(suit: string): string {
+        const symbols: Record<string, string> = {
+            'hearts': '♥',
+            'diamonds': '♦',
+            'clubs': '♣',
+            'spades': '♠'
+        };
+        return symbols[suit] || suit;
     }
 }

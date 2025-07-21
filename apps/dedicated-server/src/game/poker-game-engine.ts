@@ -829,7 +829,7 @@ export class PokerGameEngine implements IGameEngine {
 
         return {
             currentPhase: gameState.phase,
-            nextPhase: this.getNextPhase(gameState.phase),
+            nextPhase: this.getNextPhase(gameState.phase) || undefined,
             canAdvancePhase: this.canAdvancePhase(gameState),
             phaseActions: gameState.actionHistory.filter(a => this.isActionInCurrentPhase(a, gameState.phase)),
             phaseDuration: Date.now() - (gameState.actionStartTime || gameState.createdAt),
