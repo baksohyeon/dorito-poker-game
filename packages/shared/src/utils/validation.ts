@@ -4,7 +4,7 @@ import {
   PlayerAction,
   TableConfig,
   Player,
-} from 'packages/shared/src/types';
+} from '../types';
 import { z } from 'zod';
 
 /**

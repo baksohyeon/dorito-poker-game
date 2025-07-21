@@ -37,7 +37,7 @@ export class StatisticsTracker implements IStatisticsTracker {
     updatePlayerStats(playerId: string, action: PlayerAction, gameState: GameState): void {
         const stats = this.getOrCreatePlayerStats(playerId, gameState);
         const player = gameState.players.get(playerId);
-        
+
         if (!player) {
             logger.warn(`Cannot update stats: player ${playerId} not found`);
             return;
@@ -62,18 +62,18 @@ export class StatisticsTracker implements IStatisticsTracker {
         // Track preflop vs postflop actions
         if (gameState.phase === 'preflop') {
             stats.preflopActions.push(action);
-            
+
             // Track 3-bets (raise after a raise preflop)
-            const preflopRaises = stats.preflopActions.filter(a => 
+            const preflopRaises = stats.preflopActions.filter(a =>
                 ['bet', 'raise'].includes(a.type)
             ).length;
-            
+
             if (action.type === 'raise' && preflopRaises > 1) {
                 stats.threeBets++;
             }
         } else {
             stats.postflopActions.push(action);
-            
+
             // Track flops seen
             if (gameState.phase === 'flop' && stats.preflopActions.length > 0) {
                 const lastPreflopAction = stats.preflopActions[stats.preflopActions.length - 1];
@@ -135,7 +135,7 @@ export class StatisticsTracker implements IStatisticsTracker {
         if (!stats || stats.handsPlayed === 0) return 0;
 
         const voluntaryActions = stats.preflopActions.filter(action =>
-            GAME_CONSTANTS.STATS_CONSTANTS.VPIP_PREFLOP_ACTIONS.includes(action.type)
+            ['call', 'bet', 'raise', 'all-in'].includes(action.type)
         ).length;
 
         return (voluntaryActions / stats.handsPlayed) * 100;
@@ -146,7 +146,7 @@ export class StatisticsTracker implements IStatisticsTracker {
         if (!stats || stats.handsPlayed === 0) return 0;
 
         const aggressiveActions = stats.preflopActions.filter(action =>
-            GAME_CONSTANTS.STATS_CONSTANTS.PFR_PREFLOP_ACTIONS.includes(action.type)
+            ['bet', 'raise', 'all-in'].includes(action.type)
         ).length;
 
         return (aggressiveActions / stats.handsPlayed) * 100;
@@ -158,9 +158,9 @@ export class StatisticsTracker implements IStatisticsTracker {
 
         const aggressiveActions = stats.totalBets + stats.totalRaises;
         const passiveActions = stats.totalCalls;
-        
+
         if (passiveActions === 0) return aggressiveActions > 0 ? 100 : 0;
-        
+
         return (aggressiveActions / (aggressiveActions + passiveActions)) * 100;
     }
 
@@ -216,18 +216,18 @@ export class StatisticsTracker implements IStatisticsTracker {
     onHandComplete(playerId: string, won: boolean, profit: number): void {
         const stats = this.getOrCreatePlayerStats(playerId);
         stats.handsPlayed++;
-        
+
         if (won) {
             stats.handsWon++;
         }
-        
+
         stats.totalProfit += profit;
     }
 
     onShowdown(playerId: string, won: boolean): void {
         const stats = this.getOrCreatePlayerStats(playerId);
         stats.showdowns++;
-        
+
         if (won) {
             stats.showdownWins++;
         }
@@ -235,7 +235,7 @@ export class StatisticsTracker implements IStatisticsTracker {
 
     private getOrCreatePlayerStats(playerId: string, gameState?: GameState): PlayerStats {
         let stats = this.playerStats.get(playerId);
-        
+
         if (!stats) {
             const player = gameState?.players.get(playerId);
             stats = {
@@ -259,10 +259,10 @@ export class StatisticsTracker implements IStatisticsTracker {
                 bigBlindsWon: 0,
                 startingStack: player?.startingChips || 0
             };
-            
+
             this.playerStats.set(playerId, stats);
         }
-        
+
         return stats;
     }
 
@@ -273,7 +273,7 @@ export class StatisticsTracker implements IStatisticsTracker {
         // Simplified c-bet calculation - in reality this would be more complex
         const postflopBets = stats.postflopActions.filter(a => a.type === 'bet').length;
         const preflopRaises = stats.preflopActions.filter(a => a.type === 'raise').length;
-        
+
         return preflopRaises > 0 ? (postflopBets / preflopRaises) * 100 : 0;
     }
 

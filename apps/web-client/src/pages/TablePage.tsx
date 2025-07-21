@@ -1,297 +1,84 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useAppDispatch } from '../store/hooks';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  MessageCircle, 
-  Volume2, 
-  VolumeX,
-  Eye,
-  Play,
-  Pause
-} from 'lucide-react';
 import { RootState } from '../store';
-import PlayingCard from '../components/game/PlayingCard';
-import PokerChip from '../components/game/PokerChip';
-import ActionButtons from '../components/game/ActionButtons';
-import { formatChips } from '../utils/formatting';
-
-interface Player {
-  id: string;
-  username: string;
-  chips: number;
-  position: number;
-  isActive: boolean;
-  holeCards?: string[];
-  currentBet: number;
-  lastAction?: 'fold' | 'call' | 'raise' | 'check' | 'bet';
-  timeLeft?: number;
-  isDealer: boolean;
-  isSmallBlind: boolean;
-  isBigBlind: boolean;
-  isSittingOut: boolean;
-  avatar?: string;
-  isAllIn: boolean;
-  hasFolded: boolean;
-}
-
-interface GameState {
-  id: string;
-  stage: 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'waiting';
-  pot: number;
-  sidePots: Array<{ amount: number; eligiblePlayers: string[] }>;
-  communityCards: string[];
-  currentPlayer?: string;
-  minimumBet: number;
-  bigBlind: number;
-  smallBlind: number;
-  dealerPosition: number;
-  players: Player[];
-  maxPlayers: number;
-  handNumber: number;
-  isTableFull: boolean;
-  currentBet: number;
-  minRaise: number;
-  maxRaise: number;
-}
-
-// Mock game state for demonstration
-const createMockGameState = (tableId: string, currentUserId: string): GameState => ({
-  id: tableId,
-  stage: 'preflop',
-  pot: 150,
-  sidePots: [],
-  communityCards: [],
-  currentPlayer: currentUserId,
-  minimumBet: 20,
-  bigBlind: 20,
-  smallBlind: 10,
-  dealerPosition: 2,
-  players: [
-    {
-      id: currentUserId,
-      username: 'You',
-      chips: 1000,
-      position: 0,
-      isActive: true,
-      holeCards: ['AS', 'KH'],
-      currentBet: 20,
-      lastAction: 'call',
-      timeLeft: 30,
-      isDealer: false,
-      isSmallBlind: false,
-      isBigBlind: false,
-      isSittingOut: false,
-      isAllIn: false,
-      hasFolded: false
-    },
-    {
-      id: 'player-2',
-      username: 'Alice',
-      chips: 850,
-      position: 1,
-      isActive: true,
-      holeCards: ['QD', 'JC'],
-      currentBet: 20,
-      lastAction: 'call',
-      timeLeft: undefined,
-      isDealer: false,
-      isSmallBlind: true,
-      isBigBlind: false,
-      isSittingOut: false,
-      isAllIn: false,
-      hasFolded: false
-    },
-    {
-      id: 'player-3',
-      username: 'Bob',
-      chips: 1200,
-      position: 2,
-      isActive: true,
-      holeCards: ['2H', '7D'],
-      currentBet: 0,
-      lastAction: undefined,
-      timeLeft: undefined,
-      isDealer: true,
-      isSmallBlind: false,
-      isBigBlind: false,
-      isSittingOut: false,
-      isAllIn: false,
-      hasFolded: false
-    },
-    {
-      id: 'player-4',
-      username: 'Charlie',
-      chips: 750,
-      position: 3,
-      isActive: true,
-      holeCards: ['9S', '4C'],
-      currentBet: 20,
-      lastAction: 'call',
-      timeLeft: undefined,
-      isDealer: false,
-      isSmallBlind: false,
-      isBigBlind: true,
-      isSittingOut: false,
-      isAllIn: false,
-      hasFolded: false
-    },
-    {
-      id: 'player-5',
-      username: 'Diana',
-      chips: 600,
-      position: 4,
-      isActive: true,
-      holeCards: ['3D', '8H'],
-      currentBet: 0,
-      lastAction: 'fold',
-      timeLeft: undefined,
-      isDealer: false,
-      isSmallBlind: false,
-      isBigBlind: false,
-      isSittingOut: false,
-      isAllIn: false,
-      hasFolded: true
-    }
-  ],
-  maxPlayers: 9,
-  handNumber: 42,
-  isTableFull: false,
-  currentBet: 20,
-  minRaise: 20,
-  maxRaise: 1000
-});
+import { socketService } from '../services/socketService';
+import { PlayingCard } from '../components/game/PlayingCard';
+import { ActionButtons } from '../components/game/ActionButtons';
+import { PokerChip } from '../components/game/PokerChip';
+import { AIAnalysisModal } from '../components/ui/modals/AIAnalysisModal';
+import { HandHistoryModal } from '../components/ui/modals/HandHistoryModal';
 
 const TablePage: React.FC = () => {
   const { tableId } = useParams<{ tableId: string }>();
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  
-  const { user } = useSelector((state: RootState) => state.auth);
-  
-  const [gameState, setGameState] = useState<GameState | null>(null);
+  const gameState = useSelector((state: RootState) => state.game);
   const [isConnected, setIsConnected] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; username: string; message: string; timestamp: number }>>([
-    { id: '1', username: 'Alice', message: 'Good luck everyone!', timestamp: Date.now() - 5000 },
-    { id: '2', username: 'Bob', message: 'Let\'s play some poker!', timestamp: Date.now() - 3000 },
-    { id: '3', username: 'Charlie', message: 'Nice hand!', timestamp: Date.now() - 1000 }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [showChat, setShowChat] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [showHandHistory, setShowHandHistory] = useState(false);
   const [spectatorMode, setSpectatorMode] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gamePaused, setGamePaused] = useState(false);
 
-  // Initialize mock game state
   useEffect(() => {
-    if (!tableId || !user) return;
-
-    // Simulate loading
-    setTimeout(() => {
-      const mockState = createMockGameState(tableId, user.id);
-      setGameState(mockState);
+    if (tableId) {
+      socketService.joinTable(tableId);
       setIsConnected(true);
-      setLoading(false);
-    }, 1500);
-  }, [tableId, user]);
+    }
+    return () => {
+      if (tableId) {
+        socketService.leaveTable(tableId);
+      }
+    };
+  }, [tableId]);
 
   // Simulate game progression
   useEffect(() => {
     if (!gameState || gameState.stage === 'waiting') return;
 
     const gameProgression = () => {
-      setGameState(prev => {
-        if (!prev) return prev;
-
-        // Simulate community cards being dealt
-        if (prev.stage === 'preflop' && prev.communityCards.length === 0) {
-          setTimeout(() => {
-            setGameState(current => current ? {
-              ...current,
-              stage: 'flop',
-              communityCards: ['AS', 'KH', 'QD']
-            } : null);
-          }, 3000);
-        } else if (prev.stage === 'flop' && prev.communityCards.length === 3) {
-          setTimeout(() => {
-            setGameState(current => current ? {
-              ...current,
-              stage: 'turn',
-              communityCards: ['AS', 'KH', 'QD', 'JC']
-            } : null);
-          }, 3000);
-        } else if (prev.stage === 'turn' && prev.communityCards.length === 4) {
-          setTimeout(() => {
-            setGameState(current => current ? {
-              ...current,
-              stage: 'river',
-              communityCards: ['AS', 'KH', 'QD', 'JC', '2H']
-            } : null);
-          }, 3000);
-        }
-
-        return prev;
-      });
+      // This part of the logic needs to be adapted to use the actual game state
+      // For now, it's a placeholder to simulate progression
+      // In a real scenario, this would involve sending actions to the backend
+      // and receiving updated game state from the socket.
+      // For demonstration, we'll just update the stage and community cards
+      // based on a simple progression.
+      // This effect should ideally be removed or replaced with actual socket listeners.
+      // For now, it's kept to show how the game state evolves.
+      // The original code had a setInterval for game progression, which is removed.
+      // This effect is now a placeholder for the progression logic.
     };
 
-    const interval = setInterval(gameProgression, 1000);
-    return () => clearInterval(interval);
+    // This interval is no longer needed as game progression is handled by socket
+    // const interval = setInterval(gameProgression, 1000);
+    // return () => clearInterval(interval);
   }, [gameState]);
 
   // Action handlers
-  const handlePlayerAction = useCallback((action: string, amount?: number) => {
-    if (!gameState || !user) return;
+  const handlePlayerAction = (action: string, amount?: number) => {
+    if (!gameState) return;
 
     console.log(`Player action: ${action}${amount ? ` (${amount})` : ''}`);
 
     // Update game state based on action
-    setGameState(prev => {
-      if (!prev) return prev;
+    // This part needs to be adapted to send actions to the backend
+    // For now, it's a placeholder.
+    // In a real scenario, you would dispatch an action to update the game state
+    // and then send the action to the socket.
+  };
 
-      const updatedPlayers = prev.players.map(player => {
-        if (player.id === user.id) {
-          return {
-            ...player,
-            lastAction: action as any,
-            currentBet: action === 'call' ? prev.currentBet : (amount || 0),
-            chips: action === 'fold' ? player.chips : player.chips - (amount || 0),
-            hasFolded: action === 'fold',
-            isAllIn: action === 'all-in'
-          };
-        }
-        return player;
-      });
+  const handleSendChat = (message: string) => {
+    if (!message.trim()) return;
 
-      return {
-        ...prev,
-        players: updatedPlayers,
-        pot: prev.pot + (amount || 0),
-        currentBet: action === 'raise' ? (amount || 0) : prev.currentBet
-      };
-    });
-  }, [gameState, user]);
+    // This part needs to be adapted to send chat messages to the backend
+    // For now, it's a placeholder.
+    // In a real scenario, you would send the message to the socket.
+  };
 
-  const handleSendChat = useCallback(() => {
-    if (!chatInput.trim() || !user) return;
-
-    const newMessage = {
-      id: Date.now().toString(),
-      username: user.username,
-      message: chatInput.trim(),
-      timestamp: Date.now()
-    };
-
-    setChatMessages(prev => [...prev, newMessage]);
-    setChatInput('');
-  }, [chatInput, user]);
-
-  const handleLeaveTable = useCallback(() => {
-    navigate('/lobby');
-  }, [navigate]);
+  const handleLeaveTable = () => {
+    // This part needs to be adapted to leave the table via the backend
+    // For now, it's a placeholder.
+    // In a real scenario, you would dispatch an action to leave the table
+    // and then send a leave table event to the socket.
+  };
 
   const getCurrentPlayer = () => {
     return gameState?.players.find(p => p.id === user?.id);
@@ -330,7 +117,7 @@ const TablePage: React.FC = () => {
     return actions;
   };
 
-  if (loading) {
+  if (!isConnected) {
     return (
       <div className="min-h-screen bg-poker-dark-900 flex items-center justify-center">
         <div className="text-center">
@@ -349,7 +136,7 @@ const TablePage: React.FC = () => {
           <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 mb-4">
             <p className="text-red-400 mb-4">{error}</p>
             <button
-              onClick={() => navigate('/lobby')}
+              onClick={() => handleLeaveTable()}
               className="poker-button poker-button-secondary"
             >
               Return to Lobby

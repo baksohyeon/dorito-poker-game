@@ -73,14 +73,23 @@ class UserRepository extends BaseRepository<User> {
   }
 
   async createUser(data: CreateUserData): Promise<User> {
-    return this.model.create({
-      data: {
-        ...data,
-        chips: 1000, // Default starting chips
-        level: 1,
-        rank: 'Beginner',
-      },
-    });
+    try {
+      return await this.model.create({
+        data: {
+          ...data,
+          chips: 1000, // Default starting chips
+          level: 1,
+          rank: 'Beginner',
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new Error('Email or username already exists');
+        }
+      }
+      throw error;
+    }
   }
 
   async updateUser(id: string, data: UpdateUserData): Promise<User> {

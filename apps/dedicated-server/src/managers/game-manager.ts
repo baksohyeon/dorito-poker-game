@@ -1,6 +1,6 @@
 
 // apps/dedicated-server/src/managers/game-manager.ts
-import { GameState, PlayerAction, PlayerState, Card } from '@poker-game/shared/src/types';
+import { GameState, PlayerAction, PlayerState, Card, TableConfig } from '@poker-game/shared/src/types';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { EventManager } from './event-manager';
@@ -15,19 +15,20 @@ export class GameManager {
         this.eventManager = eventManager;
     }
 
-    async createGame(tableId: string, players: PlayerState[]): Promise<GameState> {
-        if (this.activeGames.has(tableId)) {
+    async createGame(tableConfig: TableConfig, players: PlayerState[]): Promise<GameState> {
+        if (this.activeGames.has(tableConfig.id)) {
             throw new Error('Game already exists for this table');
         }
 
         const gameEngine = new PokerGameEngine();
-        const gameState = gameEngine.createGame(tableId, players);
+        const gameState = gameEngine.createGame(tableConfig, players);
 
-        this.activeGames.set(tableId, gameState);
-        this.gameEngines.set(tableId, gameEngine);
+        this.activeGames.set(tableConfig.id, gameState);
+        this.gameEngines.set(tableConfig.id, gameEngine);
+
         // Save game to database
         await databaseService.games.createGame({
-            tableId,
+            tableId: tableConfig.id,
             gameNumber: 1, // Would increment based on table's game history
             status: 'WAITING'
         });
@@ -42,7 +43,7 @@ export class GameManager {
             });
         }
 
-        logger.info(`Game created for table ${tableId} with ${players.length} players`);
+        logger.info(`Game created for table ${tableConfig.id} with ${players.length} players`);
         return gameState;
     }
 

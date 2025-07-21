@@ -46,52 +46,52 @@ const initialState: AuthState = {
     isGuest: true,
 };
 
-// Async thunks - disabled for guest access
-// export const login = createAsyncThunk<ApiAuthResponse, AuthRequest>(
-//     'auth/login',
-//     async (credentials, { rejectWithValue }) => {
-//         try {
-//             const response = await authService.login(credentials);
-//             return response;
-//         } catch (error: any) {
-//             return rejectWithValue(error.response?.data?.error || 'Login failed');
-//         }
-//     }
-// );
+// Async thunks
+export const login = createAsyncThunk<ApiAuthResponse, AuthRequest>(
+    'auth/login',
+    async (credentials, { rejectWithValue }) => {
+        try {
+            const response = await authService.login(credentials);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.error || 'Login failed');
+        }
+    }
+);
 
-// export const register = createAsyncThunk<ApiAuthResponse, RegistrationRequest>(
-//     'auth/register',
-//     async (userData, { rejectWithValue }) => {
-//         try {
-//             const response = await authService.register(userData);
-//             return response;
-//         } catch (error: any) {
-//             return rejectWithValue(error.response?.data?.error || 'Registration failed');
-//         }
-//     }
-// );
+export const register = createAsyncThunk<ApiAuthResponse, RegistrationRequest>(
+    'auth/register',
+    async (userData, { rejectWithValue }) => {
+        try {
+            const response = await authService.register(userData);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.error || 'Registration failed');
+        }
+    }
+);
 
-// export const logout = createAsyncThunk<void, void>(
-//     'auth/logout',
-//     async (_, { getState }) => {
-//         const state = getState() as { auth: AuthState };
-//         if (state.auth.refreshToken) {
-//             await authService.logout(state.auth.refreshToken);
-//         }
-//     }
-// );
+export const logout = createAsyncThunk<void, void>(
+    'auth/logout',
+    async (_, { getState }) => {
+        const state = getState() as { auth: AuthState };
+        if (state.auth.refreshToken) {
+            await authService.logout(state.auth.refreshToken);
+        }
+    }
+);
 
-// export const refreshAccessToken = createAsyncThunk<ApiAuthResponse, string>(
-//     'auth/refresh',
-//     async (refreshToken, { rejectWithValue }) => {
-//         try {
-//             const response = await authService.refreshToken(refreshToken);
-//             return response;
-//         } catch (error: any) {
-//             return rejectWithValue(error.response?.data?.error || 'Token refresh failed');
-//         }
-//     }
-// );
+export const refreshAccessToken = createAsyncThunk<ApiAuthResponse, string>(
+    'auth/refresh',
+    async (refreshToken, { rejectWithValue }) => {
+        try {
+            const response = await authService.refreshToken(refreshToken);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.error || 'Token refresh failed');
+        }
+    }
+);
 
 const authSlice = createSlice({
     name: 'auth',
@@ -105,6 +105,7 @@ const authSlice = createSlice({
             state.accessToken = action.payload.tokens.accessToken;
             state.refreshToken = action.payload.tokens.refreshToken;
             state.isAuthenticated = true;
+            state.isGuest = false;
 
             localStorage.setItem('accessToken', action.payload.tokens.accessToken);
             localStorage.setItem('refreshToken', action.payload.tokens.refreshToken);
@@ -140,7 +141,50 @@ const authSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        // No extra reducers needed for guest access
+        builder
+            .addCase(login.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(login.fulfilled, (state, action) => {
+                state.loading = false;
+                if (action.payload.data) {
+                    state.user = action.payload.data.user as AuthUser;
+                    state.accessToken = action.payload.data.token;
+                    state.refreshToken = action.payload.data.refreshToken;
+                    state.isAuthenticated = true;
+                    state.isGuest = false;
+                }
+            })
+            .addCase(login.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(register.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(register.fulfilled, (state, action) => {
+                state.loading = false;
+                if (action.payload.data) {
+                    state.user = action.payload.data.user as AuthUser;
+                    state.accessToken = action.payload.data.token;
+                    state.refreshToken = action.payload.data.refreshToken;
+                    state.isAuthenticated = true;
+                    state.isGuest = false;
+                }
+            })
+            .addCase(register.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(logout.fulfilled, (state) => {
+                state.user = null;
+                state.accessToken = null;
+                state.refreshToken = null;
+                state.isAuthenticated = false;
+                state.isGuest = false;
+            });
     },
 });
 

@@ -150,11 +150,27 @@ export class PlayerMatchingService {
                 },
                 buyIn: {
                     min: (criteria.blindRange?.min || 10) * 20,
-                    max: (criteria.blindRange?.max || 20) * 100
+                    max: (criteria.blindRange?.max || 20) * 100,
+                    defaultAmount: (criteria.blindRange?.max || 20) * 50,
+                    allowShortBuy: false,
+                    shortBuyMin: (criteria.blindRange?.min || 10) * 20
                 },
                 gameType: criteria.gameType || 'texas-holdem',
                 isPrivate: criteria.isPrivate || false,
-                timeLimit: 30
+                timeLimit: 30,
+                timeBankSeconds: 60,
+                rakePercent: 5,
+                rakeCap: 100,
+                allowRebuy: true,
+                rebuyLimit: 3,
+                allowObservers: true,
+                autoStartMinPlayers: 2,
+                bettingLimit: 'no-limit',
+                tags: [],
+                createdBy: 'system',
+                createdAt: Date.now(),
+                status: 'waiting',
+                isTournament: false
             };
 
             // Request table creation from dedicated server

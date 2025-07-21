@@ -1,7 +1,7 @@
 
 // apps/dedicated-server/src/managers/table-manager.ts
 import { SnowflakeGenerator } from '@poker-game/shared';
-import { Table, TableConfig, PlayerState } from '@poker-game/shared';
+import { Table, TableConfig, PlayerState, HandHistory } from '@poker-game/shared';
 import { logger } from '@poker-game/logger';
 import { databaseService } from '@poker-game/database';
 import { EventManager } from './event-manager';
@@ -27,15 +27,18 @@ export class TableManager {
 
         const table: Table = {
             id: tableId,
-            serverId: this.serverId,
-            name: config.name,
             config,
-            status: 'waiting',
             players: new Map(),
             currentGame: undefined,
-            gamesPlayed: 0,
+            gameHistory: [],
+            waitingList: [],
+            observerCount: 0,
+            isActive: false,
+            lastActivity: Date.now(),
             createdAt: Date.now(),
-            updatedAt: Date.now()
+            totalHands: 0,
+            averagePotSize: 0,
+            seatsOccupied: 0
         };
 
         // Save to database
@@ -100,24 +103,45 @@ export class TableManager {
             id: playerId,
             name: user.username,
             chips: user.chips,
+            startingChips: user.chips,
             currentBet: 0,
             totalBet: 0,
+            totalInvested: 0,
             cards: [],
+            holeCards: [],
             position: playerPosition!,
+            seatNumber: playerPosition!,
             status: 'active',
             hasActed: false,
+            actionsThisRound: 0,
             isDealer: false,
             isSmallBlind: false,
-            isBigBlind: false
+            isBigBlind: false,
+            isInPosition: false,
+            timeBank: table.config.timeBankSeconds,
+            sessionStats: {
+                handsPlayed: 0,
+                handsWon: 0,
+                totalProfit: 0,
+                vpip: 0,
+                pfr: 0,
+                aggression: 0,
+                showdownWinRate: 0,
+                foldToBet: 0,
+                foldToRaise: 0,
+                cBetFreq: 0,
+                threeBetFreq: 0,
+                bigBlindsWon: 0
+            },
+            isObserver: false,
+            canRebuy: table.config.allowRebuy,
+            rebuyCount: 0
         };
 
         table.players.set(playerId, playerState);
-        table.updatedAt = Date.now();
-
-        // Update table status
-        if (table.players.size >= table.config.minPlayers && table.status === 'waiting') {
-            table.status = 'active';
-        }
+        table.seatsOccupied = table.players.size;
+        table.lastActivity = Date.now();
+        table.isActive = table.players.size >= table.config.minPlayers;
 
         logger.info(`Player ${playerId} joined table ${tableId} at position ${playerPosition}`);
 
@@ -142,12 +166,9 @@ export class TableManager {
         }
 
         table.players.delete(playerId);
-        table.updatedAt = Date.now();
-
-        // Update table status
-        if (table.players.size < table.config.minPlayers) {
-            table.status = 'waiting';
-        }
+        table.seatsOccupied = table.players.size;
+        table.lastActivity = Date.now();
+        table.isActive = table.players.size >= table.config.minPlayers;
 
         // If no players left, could mark table for cleanup
         if (table.players.size === 0) {
@@ -186,7 +207,7 @@ export class TableManager {
     }
 
     getActiveTables(): Table[] {
-        return Array.from(this.tables.values()).filter(t => t.status === 'active');
+        return Array.from(this.tables.values()).filter(t => t.isActive);
     }
 
     async updateTable(tableId: string, updates: Partial<Table>): Promise<boolean> {
@@ -195,11 +216,11 @@ export class TableManager {
             return false;
         }
 
-        Object.assign(table, updates, { updatedAt: Date.now() });
+        Object.assign(table, updates, { lastActivity: Date.now() });
 
         // Update database
         await databaseService.tables.updateTable(tableId, {
-            status: table.status === 'active' ? 'ACTIVE' : 'WAITING'
+            status: table.isActive ? 'ACTIVE' : 'WAITING'
         });
 
         return true;

@@ -1,5 +1,15 @@
 import axios from 'axios';
-import { AuthRequest, AuthResponse, RegistrationRequest } from '@shared/types/auth.types';
+import { AuthRequest, RegistrationRequest } from '@shared/types/auth.types';
+
+interface ApiAuthResponse {
+    success: boolean;
+    data?: {
+        token: string;
+        refreshToken: string;
+        user: any;
+    };
+    error?: string;
+}
 
 const API_BASE_URL = '/api/auth';
 
@@ -53,23 +63,53 @@ class AuthService {
         );
     }
 
-    async login(credentials: AuthRequest): Promise<AuthResponse> {
-        const response = await this.client.post('/login', credentials);
-        return response.data;
+    async login(credentials: AuthRequest): Promise<ApiAuthResponse> {
+        try {
+            const response = await this.client.post('/login', credentials);
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.response?.data?.error || 'Login failed'
+            };
+        }
     }
 
-    async register(userData: RegistrationRequest): Promise<AuthResponse> {
-        const response = await this.client.post('/register', userData);
-        return response.data;
+    async register(userData: RegistrationRequest): Promise<ApiAuthResponse> {
+        try {
+            const response = await this.client.post('/register', userData);
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.response?.data?.error || 'Registration failed'
+            };
+        }
     }
 
     async logout(refreshToken: string): Promise<void> {
         await this.client.post('/logout', { refreshToken });
     }
 
-    async refreshToken(refreshToken: string): Promise<AuthResponse> {
-        const response = await this.client.post('/refresh', { refreshToken });
-        return response.data;
+    async refreshToken(refreshToken: string): Promise<ApiAuthResponse> {
+        try {
+            const response = await this.client.post('/refresh', { refreshToken });
+            return {
+                success: true,
+                data: response.data
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.response?.data?.error || 'Token refresh failed'
+            };
+        }
     }
 
     async getProfile(): Promise<any> {

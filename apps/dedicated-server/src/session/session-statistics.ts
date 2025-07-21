@@ -19,13 +19,13 @@ export class SessionStatisticsManager implements ISessionStatistics {
         try {
             // Update session-level statistics
             this.updateSessionStats(session, hand);
-            
+
             // Update player-level statistics
             this.updatePlayerStats(session, hand);
-            
+
             // Store hand-specific statistics
             this.storeHandStats(hand);
-            
+
             logger.debug(`Updated statistics for hand ${hand.id} in session ${session.id}`);
         } catch (error) {
             logger.error(`Error updating hand statistics for ${hand.id}:`, error);
@@ -109,7 +109,7 @@ export class SessionStatisticsManager implements ISessionStatistics {
 
         // Calculate advanced statistics from hand history
         const playerStats = this.calculateAdvancedPlayerStats(session, playerId);
-        
+
         return {
             handsPlayed: sessionPlayer.handsPlayed,
             handsWon: sessionPlayer.handsWon,
@@ -134,7 +134,7 @@ export class SessionStatisticsManager implements ISessionStatistics {
 
         const statistics = this.calculateSessionStats(sessionId);
         const players = Array.from(session.players.values());
-        
+
         // Find biggest winner and loser
         const sortedByProfit = players.sort((a, b) => b.profit - a.profit);
         const biggestWinner = sortedByProfit[0]?.playerId || '';
@@ -234,7 +234,12 @@ export class SessionStatisticsManager implements ISessionStatistics {
         }
 
         const hands = session.handHistory.filter(h => h.status === 'complete');
-        const trendData = {
+        const trendData: {
+            potSizeTrend: Array<{ handNumber: number; value: number }>;
+            handDurationTrend: Array<{ handNumber: number; value: number }>;
+            playerCountTrend: Array<{ handNumber: number; value: number }>;
+            aggressionTrend: Array<{ handNumber: number; value: number }>;
+        } = {
             potSizeTrend: [],
             handDurationTrend: [],
             playerCountTrend: [],
@@ -247,9 +252,9 @@ export class SessionStatisticsManager implements ISessionStatistics {
             trendData.potSizeTrend.push({ handNumber: i + 1, value: hand.finalPot });
             trendData.handDurationTrend.push({ handNumber: i + 1, value: hand.duration });
             trendData.playerCountTrend.push({ handNumber: i + 1, value: hand.participants.length });
-            
+
             // Calculate aggression for this hand
-            const aggressiveActions = hand.actionSequence.filter(a => 
+            const aggressiveActions = hand.actionSequence.filter(a =>
                 ['bet', 'raise', 'all-in'].includes(a.type)
             ).length;
             const totalActions = hand.actionSequence.length;
@@ -269,15 +274,15 @@ export class SessionStatisticsManager implements ISessionStatistics {
         const stats = session.statistics;
         stats.totalHandsDealt++;
         stats.rakeCollected += hand.rake;
-        
+
         if (hand.finalPot > stats.biggestPot) {
             stats.biggestPot = hand.finalPot;
         }
-        
+
         if (hand.duration > stats.longestHand) {
             stats.longestHand = hand.duration;
         }
-        
+
         if (hand.duration < stats.fastestHand) {
             stats.fastestHand = hand.duration;
         }
@@ -288,7 +293,7 @@ export class SessionStatisticsManager implements ISessionStatistics {
             const sessionPlayer = session.players.get(participantId);
             if (sessionPlayer) {
                 sessionPlayer.handsPlayed++;
-                
+
                 // Check if player won this hand
                 const winner = hand.winners.find(w => w.playerId === participantId);
                 if (winner) {
@@ -348,9 +353,9 @@ export class SessionStatisticsManager implements ISessionStatistics {
         for (const hand of playerHands) {
             const playerActions = hand.actionSequence.filter(a => a.playerId === playerId);
             const preflopActions = playerActions.filter(a => this.isPreflop(a));
-            
+
             // VPIP calculation
-            const voluntaryPreflopAction = preflopActions.find(a => 
+            const voluntaryPreflopAction = preflopActions.find(a =>
                 ['call', 'bet', 'raise', 'all-in'].includes(a.type)
             );
             if (voluntaryPreflopAction) {
@@ -358,7 +363,7 @@ export class SessionStatisticsManager implements ISessionStatistics {
             }
 
             // PFR calculation
-            const aggressivePreflopAction = preflopActions.find(a => 
+            const aggressivePreflopAction = preflopActions.find(a =>
                 ['bet', 'raise', 'all-in'].includes(a.type)
             );
             if (aggressivePreflopAction) {
@@ -366,13 +371,13 @@ export class SessionStatisticsManager implements ISessionStatistics {
             }
 
             // Aggression calculation
-            const aggressiveActions = playerActions.filter(a => 
+            const aggressiveActions = playerActions.filter(a =>
                 ['bet', 'raise', 'all-in'].includes(a.type)
             ).length;
-            const passiveActions = playerActions.filter(a => 
+            const passiveActions = playerActions.filter(a =>
                 ['call', 'check'].includes(a.type)
             ).length;
-            
+
             totalAggressive += aggressiveActions;
             totalPassive += passiveActions;
 

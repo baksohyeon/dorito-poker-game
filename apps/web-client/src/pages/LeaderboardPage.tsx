@@ -1,27 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Medal, 
   Crown, 
-  TrendingUp, 
   Users, 
   Star, 
-  Zap, 
   Target,
-  Calendar,
   Filter,
   Search,
   RefreshCw,
-  Award,
   Flame,
   DollarSign,
-  Clock,
-  BarChart3,
-  ChevronUp,
-  ChevronDown,
-  Eye,
   UserCheck
 } from 'lucide-react';
 import { RootState } from '../store';

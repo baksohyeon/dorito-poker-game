@@ -157,7 +157,7 @@ async function runUnlimitedHoldemExample() {
             autoPost: true,
             timeBank: 60
         };
-        
+
         await orchestrator.joinSession(session.id, newPlayer);
         console.log(`✅ ${newPlayer.playerId} joined with $${newPlayer.buyInAmount} (${newPlayer.buyInAmount / session.config.blindStructure.big}BB)`);
 
@@ -168,7 +168,7 @@ async function runUnlimitedHoldemExample() {
         console.log('\n🔌 Simulating player disconnection...');
         orchestrator.handlePlayerDisconnection(session.id, 'alice');
         await sleep(2000);
-        
+
         console.log('🔌 Player reconnecting...');
         orchestrator.handlePlayerReconnection(session.id, 'alice');
 
@@ -223,16 +223,16 @@ async function runUnlimitedHoldemExample() {
 
 async function simulateUnlimitedHoldemPlay(orchestrator: PokerSessionOrchestrator, sessionId: string, handCount: number) {
     console.log(`\n🃏 Simulating ${handCount} hands of unlimited hold'em...`);
-    
+
     for (let i = 0; i < handCount; i++) {
         console.log(`\n--- Hand ${i + 1} ---`);
-        
+
         // Wait for hand to start
         await sleep(1000);
-        
+
         const currentSession = orchestrator.getSession(sessionId);
         const currentHand = currentSession?.currentHand;
-        
+
         if (currentHand && currentHand.gameState.currentPlayer) {
             // Simulate various betting patterns typical in unlimited hold'em
             const bettingPatterns = [
@@ -241,36 +241,36 @@ async function simulateUnlimitedHoldemPlay(orchestrator: PokerSessionOrchestrato
                 'tricky',      // Check-raises, slow play
                 'all-in'       // All-in scenarios
             ];
-            
+
             const pattern = bettingPatterns[Math.floor(Math.random() * bettingPatterns.length)];
             console.log(`   Simulating ${pattern} betting pattern...`);
-            
+
             await simulateBettingAction(orchestrator, sessionId, currentHand.gameState.currentPlayer, pattern);
         }
-        
+
         // Wait for hand to complete
         await sleep(2000);
     }
 }
 
 async function simulateBettingAction(
-    orchestrator: PokerSessionOrchestrator, 
-    sessionId: string, 
-    playerId: string, 
+    orchestrator: PokerSessionOrchestrator,
+    sessionId: string,
+    playerId: string,
     pattern: string
 ) {
     const session = orchestrator.getSession(sessionId);
     const currentHand = session?.currentHand;
-    
+
     if (!currentHand || !currentHand.gameState.players.has(playerId)) {
         return;
     }
-    
+
     const player = currentHand.gameState.players.get(playerId)!;
     const bigBlind = session.config.blindStructure.big;
-    
+
     let action: PlayerAction;
-    
+
     switch (pattern) {
         case 'aggressive':
             // Large bets/raises (2-5x pot)
@@ -282,7 +282,7 @@ async function simulateBettingAction(
                 timestamp: Date.now()
             };
             break;
-            
+
         case 'all-in':
             // All-in scenarios
             action = {
@@ -291,7 +291,7 @@ async function simulateBettingAction(
                 timestamp: Date.now()
             };
             break;
-            
+
         case 'tricky':
             // Mix of checks and raises
             action = {
@@ -301,7 +301,7 @@ async function simulateBettingAction(
                 timestamp: Date.now()
             };
             break;
-            
+
         default: // conservative
             // Small bets, calls, folds
             const conservativeActions = ['fold', 'call', 'check'];
@@ -313,7 +313,7 @@ async function simulateBettingAction(
             };
             break;
     }
-    
+
     try {
         const processed = await orchestrator.processAction(sessionId, action);
         if (processed) {
@@ -338,7 +338,7 @@ function setupEventListeners(orchestrator: PokerSessionOrchestrator) {
     });
 
     orchestrator.on('handCompleted', ({ session, hand }) => {
-        const winners = hand.winners.map(w => `${w.playerId}($${w.winAmount})`).join(', ');
+        const winners = hand.winners.map(winner => `${winner.playerId}($${winner.winAmount})`).join(', ');
         console.log(`✅ Hand #${hand.handNumber} completed - Winners: ${winners} - Pot: $${hand.finalPot} - Rake: $${hand.rake}`);
     });
 

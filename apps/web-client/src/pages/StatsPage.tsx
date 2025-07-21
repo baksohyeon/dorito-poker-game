@@ -1,25 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Trophy, 
-  Target, 
-  Clock, 
-  DollarSign,
-  Users,
-  BarChart3,
-  Calendar,
-  Filter,
-  Download,
-  RefreshCw,
-  Award,
+  Crown,
+  Swords,
+  Gamepad2,
+  CircleDollarSign,
+  Sparkles,
+  Flame,
+  Dices,
+  Crosshair,
+  Target,
+  Skull,
   Star,
-  Zap,
-  Shield,
-  Heart,
-  Activity
 } from 'lucide-react';
 import { RootState } from '../store';
 import { formatChips } from '../utils/formatting';
@@ -146,11 +140,11 @@ const StatsPage: React.FC = () => {
 
   const achievements = [
     { id: '1', name: 'First Win', description: 'Win your first hand', icon: Trophy, earned: true, date: '2024-01-10' },
-    { id: '2', name: 'Big Pot', description: 'Win a pot worth 1000+ chips', icon: DollarSign, earned: true, date: '2024-01-12' },
-    { id: '3', name: 'Streak Master', description: 'Win 5 hands in a row', icon: Zap, earned: true, date: '2024-01-14' },
+    { id: '2', name: 'Big Pot', description: 'Win a pot worth 1000+ chips', icon: CircleDollarSign, earned: true, date: '2024-01-12' },
+    { id: '3', name: 'Streak Master', description: 'Win 5 hands in a row', icon: Sparkles, earned: true, date: '2024-01-14' },
     { id: '4', name: 'Royal Flush', description: 'Get a royal flush', icon: Star, earned: false },
-    { id: '5', name: 'Iron Man', description: 'Play 1000 hands', icon: Shield, earned: false },
-    { id: '6', name: 'Comeback King', description: 'Win after being down 500+ chips', icon: Heart, earned: false }
+    { id: '5', name: 'Iron Man', description: 'Play 1000 hands', icon: Crown, earned: false },
+    { id: '6', name: 'Comeback King', description: 'Win after being down 500+ chips', icon: Flame, earned: false }
   ];
 
   const formatTime = (minutes: number) => {
@@ -179,10 +173,10 @@ const StatsPage: React.FC = () => {
 
   const getResultIcon = (result: string) => {
     switch (result) {
-      case 'win': return <TrendingUp className="w-4 h-4" />;
-      case 'loss': return <TrendingDown className="w-4 h-4" />;
-      case 'fold': return <Activity className="w-4 h-4" />;
-      default: return <Activity className="w-4 h-4" />;
+      case 'win': return <Target className="w-4 h-4" />;
+      case 'loss': return <Skull className="w-4 h-4" />;
+      case 'fold': return <Crosshair className="w-4 h-4" />;
+      default: return <Crosshair className="w-4 h-4" />;
     }
   };
 
@@ -198,8 +192,8 @@ const StatsPage: React.FC = () => {
         {/* Tab Navigation */}
         <div className="flex space-x-1 bg-poker-dark-800 rounded-lg p-1 mb-8">
           {[
-            { id: 'overview', label: 'Overview', icon: BarChart3 },
-            { id: 'hands', label: 'Hand History', icon: Clock },
+            { id: 'overview', label: 'Overview', icon: Gamepad2 },
+            { id: 'hands', label: 'Hand History', icon: Dices },
             { id: 'performance', label: 'Performance', icon: Target },
             { id: 'achievements', label: 'Achievements', icon: Trophy }
           ].map((tab) => (
@@ -223,11 +217,12 @@ const StatsPage: React.FC = () => {
         {/* Time Filter */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Crosshair className="w-4 h-4 text-gray-400" />
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value as any)}
-              className="bg-poker-dark-800 border border-gray-600 rounded px-3 py-1 text-sm"
+              className="bg-poker-dark-700 text-sm rounded-lg p-1 outline-none"
+              aria-label="Time filter"
             >
               <option value="all">All Time</option>
               <option value="week">This Week</option>
@@ -241,11 +236,11 @@ const StatsPage: React.FC = () => {
               onClick={() => setLoading(true)}
               className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <Crosshair className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
             <button className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
-              <Download className="w-4 h-4" />
+              <Dices className="w-4 h-4" />
               <span>Export</span>
             </button>
           </div>
@@ -266,7 +261,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">Win Rate</div>
-                    <TrendingUp className="w-5 h-5 text-green-400" />
+                    <Target className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="text-3xl font-bold text-green-400">{gameStats.winRate}%</div>
                   <div className="text-sm text-gray-400 mt-2">
@@ -277,7 +272,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">Total Winnings</div>
-                    <DollarSign className="w-5 h-5 text-poker-gold-400" />
+                    <CircleDollarSign className="w-5 h-5 text-poker-gold-400" />
                   </div>
                   <div className="text-3xl font-bold text-poker-gold-400">
                     {formatChips(gameStats.totalWinnings)}
@@ -303,7 +298,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">Play Time</div>
-                    <Clock className="w-5 h-5 text-blue-400" />
+                    <Dices className="w-5 h-5 text-blue-400" />
                   </div>
                   <div className="text-3xl font-bold text-blue-400">
                     {formatTime(gameStats.totalPlayTime)}
@@ -319,7 +314,7 @@ const StatsPage: React.FC = () => {
                 <h3 className="text-xl font-semibold mb-4">Performance Over Time</h3>
                 <div className="h-64 bg-poker-dark-900 rounded-lg flex items-center justify-center">
                   <div className="text-center text-gray-400">
-                    <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                    <Dices className="w-12 h-12 mx-auto mb-2" />
                     <p>Performance chart will be displayed here</p>
                   </div>
                 </div>
@@ -448,7 +443,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">PFR</div>
-                    <Zap className="w-5 h-5 text-yellow-400" />
+                    <Dices className="w-5 h-5 text-yellow-400" />
                   </div>
                   <div className="text-3xl font-bold text-yellow-400">{performanceMetrics.pfr}%</div>
                   <div className="text-sm text-gray-400 mt-2">Pre-Flop Raise</div>
@@ -457,7 +452,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">AF</div>
-                    <Activity className="w-5 h-5 text-green-400" />
+                    <Swords className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="text-3xl font-bold text-green-400">{performanceMetrics.af}</div>
                   <div className="text-sm text-gray-400 mt-2">Aggression Factor</div>
@@ -466,7 +461,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">WTSD</div>
-                    <Shield className="w-5 h-5 text-purple-400" />
+                    <Crosshair className="w-5 h-5 text-purple-400" />
                   </div>
                   <div className="text-3xl font-bold text-purple-400">{performanceMetrics.wtsd}%</div>
                   <div className="text-sm text-gray-400 mt-2">Went to Showdown</div>
@@ -484,7 +479,7 @@ const StatsPage: React.FC = () => {
                 <div className="bg-poker-dark-800 rounded-lg p-6 border border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-gray-400">BB/100</div>
-                    <DollarSign className="w-5 h-5 text-green-400" />
+                    <CircleDollarSign className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="text-3xl font-bold text-green-400">{performanceMetrics.bbPer100}</div>
                   <div className="text-sm text-gray-400 mt-2">Big Blinds per 100 hands</div>

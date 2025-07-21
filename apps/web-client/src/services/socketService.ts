@@ -1,57 +1,57 @@
 import { io, Socket } from 'socket.io-client';
-import { store } from '../store';
-import { setConnectionStatus, addNotification } from '../store/slices/uiSlice';
-import { updateGameState, setMyCards, setCanAct, setValidActions } from '../store/slices/gameSlice';
-import { updateTableInfo } from '../store/slices/tableSlice';
+import { AppDispatch } from '../store';
 
 // Types matching the dedicated server events
 interface ClientToServerEvents {
-  'player:join-table': (data: { tableId: string; position?: number }) => void;
-  'player:leave-table': () => void;
-  'player:reconnect': (data: { reconnectToken: string }) => void;
-  'game:action': (data: { action: any }) => void;
-  'game:ready': () => void;
-  'chat:message': (data: { message: string; type?: 'chat' | 'emote' }) => void;
-  'heartbeat': () => void;
-  'ping': () => void;
+    'player:join-table': (data: { tableId: string; position?: number }) => void;
+    'player:leave-table': () => void;
+    'player:reconnect': (data: { reconnectToken: string }) => void;
+    'game:action': (data: { action: any }) => void;
+    'game:ready': () => void;
+    'chat:message': (data: { message: string; type?: 'chat' | 'emote' }) => void;
+    'heartbeat': () => void;
+    'ping': () => void;
 }
 
 interface ServerToClientEvents {
-  'game:state-update': (data: { gameState: any }) => void;
-  'game:state-sync': (data: { fullState: any }) => void;
-  'game:action-required': (data: { timeLimit: number; validActions: string[] }) => void;
-  'game:action-result': (data: { action: any; success: boolean; error?: string }) => void;
-  'table:player-joined': (data: { player: any }) => void;
-  'table:player-left': (data: { playerId: string }) => void;
-  'table:updated': (data: { table: any }) => void;
-  'player:disconnected': (data: { playerId: string; timeoutRemaining: number }) => void;
-  'player:reconnected': (data: { playerId: string }) => void;
-  'player:chips-updated': (data: { playerId: string; chips: number }) => void;
-  'chat:message': (data: { playerId: string; message: string; timestamp: number }) => void;
-  'chat:system-message': (data: { message: string; type: 'info' | 'warning' | 'error' }) => void;
-  'notification': (data: { type: 'info' | 'success' | 'warning' | 'error'; message: string }) => void;
-  'heartbeat_ack': () => void;
-  'heartbeat_request': () => void;
-  'pong': (data: { timestamp: number; serverId: string }) => void;
-  'error': (data: { code: string; message: string; details?: any }) => void;
+    'game:state-update': (data: { gameState: any }) => void;
+    'game:state-sync': (data: { fullState: any }) => void;
+    'game:action-required': (data: { timeLimit: number; validActions: string[] }) => void;
+    'game:action-result': (data: { action: any; success: boolean; error?: string }) => void;
+    'table:player-joined': (data: { player: any }) => void;
+    'table:player-left': (data: { playerId: string }) => void;
+    'table:updated': (data: { table: any }) => void;
+    'player:disconnected': (data: { playerId: string; timeoutRemaining: number }) => void;
+    'player:reconnected': (data: { playerId: string }) => void;
+    'player:chips-updated': (data: { playerId: string; chips: number }) => void;
+    'chat:message': (data: { playerId: string; message: string; timestamp: number }) => void;
+    'chat:system-message': (data: { message: string; type: 'info' | 'warning' | 'error' }) => void;
+    'notification': (data: { type: 'info' | 'success' | 'warning' | 'error'; message: string }) => void;
+    'heartbeat_ack': () => void;
+    'heartbeat_request': () => void;
+    'pong': (data: { timestamp: number; serverId: string }) => void;
+    'error': (data: { code: string; message: string; details?: any }) => void;
 }
 
 class SocketService {
     private socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
+    private dispatch: AppDispatch | null = null;
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
     private currentTableId: string | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
     private eventHandlers: Map<string, Function[]> = new Map();
 
+    setDispatch(dispatch: AppDispatch) {
+        this.dispatch = dispatch;
+    }
+
     async connect(token?: string): Promise<void> {
         if (this.socket?.connected) return;
 
         return new Promise((resolve, reject) => {
             // Try dedicated server first (port 3002), fallback to master server (port 3001)
-            const dedicatedServerUrl = import.meta.env.PROD
-                ? window.location.origin.replace(':3000', ':3002')
-                : 'http://localhost:3002';
+            const dedicatedServerUrl = process.env.VITE_DEDICATED_SERVER_URL || 'http://localhost:3002';
 
             this.socket = io(dedicatedServerUrl, {
                 auth: {
@@ -64,7 +64,7 @@ class SocketService {
 
             this.socket.on('connect', () => {
                 console.log('Connected to dedicated game server');
-                store.dispatch(setConnectionStatus('connected'));
+                this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'connected' });
                 this.reconnectAttempts = 0;
                 this.startHeartbeat();
                 resolve();
@@ -83,16 +83,16 @@ class SocketService {
         if (this.currentTableId) {
             this.emit('player:leave-table', {});
         }
-        
+
         this.stopHeartbeat();
-        
+
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
         }
-        
+
         this.currentTableId = null;
-        store.dispatch(setConnectionStatus('disconnected'));
+        this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'disconnected' });
     }
 
     private setupEventHandlers() {
@@ -101,21 +101,24 @@ class SocketService {
         // Connection events
         this.socket.on('connect', () => {
             console.log('Connected to dedicated game server');
-            store.dispatch(setConnectionStatus('connected'));
+            this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'connected' });
             this.reconnectAttempts = 0;
             this.startHeartbeat();
 
-            store.dispatch(addNotification({
-                type: 'success',
-                title: 'Connected',
-                message: 'Connected to game server',
-                duration: 3000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'success',
+                    title: 'Connected',
+                    message: 'Connected to game server',
+                    duration: 3000,
+                }
+            });
         });
 
         this.socket.on('disconnect', (reason) => {
             console.log('Disconnected from game server:', reason);
-            store.dispatch(setConnectionStatus('disconnected'));
+            this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'disconnected' });
             this.stopHeartbeat();
 
             if (reason === 'io server disconnect') {
@@ -125,80 +128,95 @@ class SocketService {
 
         this.socket.on('connect_error', (error) => {
             console.error('Connection error:', error);
-            store.dispatch(setConnectionStatus('error'));
+            this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'error' });
             this.reconnect();
         });
 
         // Game state events
         this.socket.on('game:state-update', (data) => {
-            store.dispatch(updateGameState(data.gameState));
+            this.dispatch?.({ type: 'game/updateGameState', payload: data.gameState });
             this.emit('game-state-update', data.gameState);
         });
 
         this.socket.on('game:state-sync', (data) => {
-            store.dispatch(updateGameState(data.fullState));
+            this.dispatch?.({ type: 'game/updateGameState', payload: data.fullState });
             this.emit('game-state-update', data.fullState);
         });
 
         this.socket.on('game:action-required', (data) => {
-            store.dispatch(setCanAct(true));
-            store.dispatch(setValidActions(data.validActions));
+            this.dispatch?.({ type: 'game/setCanAct', payload: true });
+            this.dispatch?.({ type: 'game/setValidActions', payload: data.validActions });
             this.emit('action-required', data);
         });
 
         this.socket.on('game:action-result', (data) => {
             if (!data.success && data.error) {
-                store.dispatch(addNotification({
-                    type: 'error',
-                    title: 'Action Failed',
-                    message: data.error,
-                    duration: 5000,
-                }));
+                this.dispatch?.({
+                    type: 'ui/addNotification',
+                    payload: {
+                        type: 'error',
+                        title: 'Action Failed',
+                        message: data.error,
+                        duration: 5000,
+                    }
+                });
             }
         });
 
         // Table events
         this.socket.on('table:player-joined', (data) => {
-            store.dispatch(addNotification({
-                type: 'info',
-                title: 'Player Joined',
-                message: `Player joined the table`,
-                duration: 3000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'info',
+                    title: 'Player Joined',
+                    message: `Player joined the table`,
+                    duration: 3000,
+                }
+            });
             this.emit('player-joined', data);
         });
 
         this.socket.on('table:player-left', (data) => {
-            store.dispatch(addNotification({
-                type: 'info',
-                title: 'Player Left',
-                message: `Player left the table`,
-                duration: 3000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'info',
+                    title: 'Player Left',
+                    message: `Player left the table`,
+                    duration: 3000,
+                }
+            });
             this.emit('player-left', data);
         });
 
         this.socket.on('table:updated', (data) => {
-            store.dispatch(updateTableInfo(data.table));
+            this.dispatch?.({ type: 'table/updateTableInfo', payload: data.table });
         });
 
         // Player events
         this.socket.on('player:disconnected', (data) => {
-            store.dispatch(addNotification({
-                type: 'warning',
-                title: 'Player Disconnected',
-                message: `Player disconnected (${Math.round(data.timeoutRemaining / 1000)}s to reconnect)`,
-                duration: 5000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'warning',
+                    title: 'Player Disconnected',
+                    message: `Player disconnected (${Math.round(data.timeoutRemaining / 1000)}s to reconnect)`,
+                    duration: 5000,
+                }
+            });
         });
 
         this.socket.on('player:reconnected', (data) => {
-            store.dispatch(addNotification({
-                type: 'success',
-                title: 'Player Reconnected',
-                message: 'Player has reconnected',
-                duration: 3000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'success',
+                    title: 'Player Reconnected',
+                    message: 'Player has reconnected',
+                    duration: 3000,
+                }
+            });
         });
 
         // Chat events
@@ -212,22 +230,28 @@ class SocketService {
         });
 
         this.socket.on('chat:system-message', (data) => {
-            store.dispatch(addNotification({
-                type: data.type,
-                title: 'System',
-                message: data.message,
-                duration: 5000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: data.type,
+                    title: 'System',
+                    message: data.message,
+                    duration: 5000,
+                }
+            });
         });
 
         // Notifications
         this.socket.on('notification', (data) => {
-            store.dispatch(addNotification({
-                type: data.type,
-                title: 'Game',
-                message: data.message,
-                duration: 5000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: data.type,
+                    title: 'Game',
+                    message: data.message,
+                    duration: 5000,
+                }
+            });
         });
 
         // Heartbeat
@@ -247,12 +271,15 @@ class SocketService {
         // Error events
         this.socket.on('error', (error) => {
             console.error('Socket error:', error);
-            store.dispatch(addNotification({
-                type: 'error',
-                title: 'Game Error',
-                message: error.message || 'An error occurred',
-                duration: 5000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'error',
+                    title: 'Game Error',
+                    message: error.message || 'An error occurred',
+                    duration: 5000,
+                }
+            });
             this.emit('table-error', error);
         });
     }
@@ -275,17 +302,20 @@ class SocketService {
 
     private reconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            store.dispatch(addNotification({
-                type: 'error',
-                title: 'Connection Failed',
-                message: 'Unable to connect to game server',
-                duration: 10000,
-            }));
+            this.dispatch?.({
+                type: 'ui/addNotification',
+                payload: {
+                    type: 'error',
+                    title: 'Connection Failed',
+                    message: 'Unable to connect to game server',
+                    duration: 10000,
+                }
+            });
             return;
         }
 
         this.reconnectAttempts++;
-        store.dispatch(setConnectionStatus('connecting'));
+        this.dispatch?.({ type: 'ui/setConnectionStatus', payload: 'connecting' });
 
         setTimeout(() => {
             this.connect();
@@ -324,9 +354,9 @@ class SocketService {
         }
 
         this.currentTableId = tableId;
-        this.socket.emit('player:join-table', { 
-            tableId, 
-            position: seatNumber 
+        this.socket.emit('player:join-table', {
+            tableId,
+            position: seatNumber
         });
     }
 
@@ -344,11 +374,11 @@ class SocketService {
             throw new Error('Not connected to game server');
         }
 
-        this.socket.emit('game:action', { 
-            action: { 
-                type: action, 
-                amount: amount 
-            } 
+        this.socket.emit('game:action', {
+            action: {
+                type: action,
+                amount: amount
+            }
         });
     }
 

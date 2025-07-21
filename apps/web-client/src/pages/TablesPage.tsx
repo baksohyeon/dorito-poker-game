@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../store/hooks';
@@ -7,8 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   Clock, 
-  DollarSign, 
-  Star, 
   Filter, 
   Search, 
   RefreshCw,
@@ -18,17 +16,9 @@ import {
   Zap,
   Shield,
   Target,
-  TrendingUp,
-  Settings,
   Plus,
-  Minus,
-  ChevronRight,
-  Wifi,
-  WifiOff,
   AlertCircle,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
+  CheckCircle} from 'lucide-react';
 import { RootState } from '../store';
 import { formatChips } from '../utils/formatting';
 
