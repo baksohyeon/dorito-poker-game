@@ -22,68 +22,172 @@ export interface PlayerAction {
   amount?: number;
   timestamp: number;
   playerId: string;
+  actionId?: string;
+  isValid?: boolean;
+  validationMessage?: string;
+  timeToAct?: number;
+  potOdds?: number;
+  effectiveStack?: number;
+}
+
+export interface ActionValidationResult {
+  isValid: boolean;
+  errorCode?: string;
+  message?: string;
+  suggestedActions?: string[];
+}
+
+export interface BettingOptions {
+  canFold: boolean;
+  canCheck: boolean;
+  canCall: boolean;
+  canBet: boolean;
+  canRaise: boolean;
+  canAllIn: boolean;
+  callAmount: number;
+  minBet: number;
+  minRaise: number;
+  maxRaise: number;
+  potSize: number;
 }
 
 export interface GameState {
   id: string;
   tableId: string;
-  phase: 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'finished';
+  phase: GamePhase;
   pot: number;
   sidePots: SidePot[];
   communityCards: Card[];
+  burnCards: Card[];
   currentPlayer: string | null;
   dealerPosition: number;
   smallBlindPosition: number;
   bigBlindPosition: number;
   players: Map<string, PlayerState>;
-  blinds: {
-    small: number;
-    big: number;
-  };
+  blinds: BlindStructure;
+  bettingLimit: BettingLimit;
   round: number;
+  handNumber: number;
   lastAction?: PlayerAction;
+  actionHistory: PlayerAction[];
   actionStartTime?: number;
   actionTimeLimit: number;
+  minRaise: number;
+  totalActions: number;
+  isHeadsUp: boolean;
+  rakeAmount: number;
+  rakePercent: number;
+  gameType: GameType;
+  tableConfig: TableConfig;
+  stateVersion: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type GamePhase = 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'finished' | 'paused' | 'cancelled';
+
+export type GameType = 'texas-holdem' | 'omaha' | 'omaha-hi-lo' | 'seven-card-stud' | 'five-card-draw';
+
+export type BettingLimit = 'no-limit' | 'pot-limit' | 'fixed-limit';
+
+export interface BlindStructure {
+  small: number;
+  big: number;
+  ante?: number;
+  level?: number;
+  nextLevelAt?: number;
+  timeRemaining?: number;
 }
 
 export interface PlayerState {
   id: string;
   name: string;
+  avatarUrl?: string;
   chips: number;
+  startingChips: number;
   currentBet: number;
   totalBet: number;
+  totalInvested: number;
   cards: Card[];
+  holeCards: Card[];
   position: number;
-  status: 'active' | 'folded' | 'all-in' | 'sitting-out' | 'disconnected';
+  seatNumber: number;
+  status: PlayerStatus;
   hasActed: boolean;
+  actionsThisRound: number;
   isDealer: boolean;
   isSmallBlind: boolean;
   isBigBlind: boolean;
+  isInPosition: boolean;
+  timeBank: number;
+  disconnectedAt?: number;
+  lastActionTime?: number;
+  handResult?: HandResult;
+  sessionStats: PlayerSessionStats;
+  isObserver: boolean;
+  canRebuy: boolean;
+  rebuyCount: number;
+}
+
+export type PlayerStatus = 'active' | 'folded' | 'all-in' | 'sitting-out' | 'disconnected' | 'waiting' | 'away';
+
+export interface PlayerSessionStats {
+  handsPlayed: number;
+  handsWon: number;
+  totalProfit: number;
+  vpip: number;
+  pfr: number;
+  aggression: number;
+  showdownWinRate: number;
+  foldToBet: number;
+  foldToRaise: number;
+  cBetFreq: number;
+  threeBetFreq: number;
+  bigBlindsWon: number;
 }
 
 export interface SidePot {
+  id: string;
   amount: number;
   eligiblePlayers: string[];
-  winnerId?: string;
+  winners: PotWinner[];
+  isMainPot: boolean;
+  maxContribution: number;
+}
+
+export interface PotWinner {
+  playerId: string;
+  amount: number;
+  handResult: HandResult;
+  share: number;
 }
 
 export interface HandResult {
-  type:
-    | 'high-card'
-    | 'pair'
-    | 'two-pair'
-    | 'three-of-a-kind'
-    | 'straight'
-    | 'flush'
-    | 'full-house'
-    | 'four-of-a-kind'
-    | 'straight-flush'
-    | 'royal-flush';
-  rank: number; // 1-10, higher is better
-  cards: Card[]; // Best 5 cards
+  type: HandType;
+  rank: number;
+  strength: number;
+  cards: Card[];
+  playingCards: Card[];
+  kickers: Card[];
   description: string;
-  kickers?: Card[]; // Tie-breaking cards
+  shortDescription: string;
+  rawRank: number;
+  isWinner: boolean;
+  tieBreaker: number[];
+  handValue: string;
 }
+
+export type HandType =
+  | 'high-card'
+  | 'pair'
+  | 'two-pair'
+  | 'three-of-a-kind'
+  | 'straight'
+  | 'flush'
+  | 'full-house'
+  | 'four-of-a-kind'
+  | 'straight-flush'
+  | 'royal-flush';
 
 export interface GameResult {
   gameId: string;
@@ -112,11 +216,18 @@ export interface PlayerPosition {
 }
 
 export interface BettingRound {
-  phase: 'preflop' | 'flop' | 'turn' | 'river';
+  phase: GamePhase;
+  roundNumber: number;
   currentBet: number;
   totalPot: number;
   actions: PlayerAction[];
   isComplete: boolean;
+  startTime: number;
+  endTime?: number;
+  aggressorId?: string;
+  totalRaises: number;
+  playersActed: Set<string>;
+  communityCards: Card[];
 }
 
 export interface GameHistory {
@@ -130,29 +241,144 @@ export interface GameHistory {
 }
 
 export interface HandHistory {
+  handId: string;
   handNumber: number;
+  gameId: string;
+  tableId: string;
+  startTime: number;
+  endTime: number;
   communityCards: Card[];
+  burnCards: Card[];
   playerHands: Map<string, Card[]>;
+  playerResults: Map<string, HandResult>;
   bettingRounds: BettingRound[];
-  winner: GameWinner;
+  winners: GameWinner[];
   showdown: boolean;
+  totalPot: number;
+  rake: number;
+  dealerPosition: number;
+  blinds: BlindStructure;
+  participants: string[];
+  foldedPlayers: string[];
+  allInPlayers: string[];
+  showdownPlayers: string[];
 }
 
 export interface TableConfig {
   id: string;
-  name?: string;
+  name: string;
   maxPlayers: number;
   minPlayers: number;
-  blinds: {
-    small: number;
-    big: number;
-  };
-  buyIn: {
-    min: number;
-    max: number;
-  };
-  gameType: 'texas-holdem' | 'omaha' | 'seven-card-stud';
+  blinds: BlindStructure;
+  buyIn: BuyInConfig;
+  gameType: GameType;
+  bettingLimit: BettingLimit;
   isPrivate: boolean;
   password?: string;
-  timeLimit: number; // seconds per action
+  timeLimit: number;
+  timeBankSeconds: number;
+  rakePercent: number;
+  rakeCap: number;
+  allowRebuy: boolean;
+  rebuyLimit: number;
+  allowObservers: boolean;
+  autoStartMinPlayers: number;
+  blindLevelDuration?: number;
+  isTournament: boolean;
+  tournamentId?: string;
+  description?: string;
+  tags: string[];
+  createdBy: string;
+  createdAt: number;
+  status: TableStatus;
+}
+
+export interface BuyInConfig {
+  min: number;
+  max: number;
+  defaultAmount: number;
+  allowShortBuy: boolean;
+  shortBuyMin: number;
+}
+
+export type TableStatus = 'waiting' | 'active' | 'paused' | 'closed' | 'full' | 'breaking';
+
+export interface GameFlow {
+  currentPhase: GamePhase;
+  nextPhase?: GamePhase;
+  canAdvancePhase: boolean;
+  phaseActions: PlayerAction[];
+  phaseDuration: number;
+  phaseStartTime: number;
+  waitingForPlayers: string[];
+  completedActions: Map<string, PlayerAction>;
+  pendingActions: Map<string, BettingOptions>;
+}
+
+export interface GameTransition {
+  from: GamePhase;
+  to: GamePhase;
+  trigger: TransitionTrigger;
+  timestamp: number;
+  playersInvolved: string[];
+  data?: any;
+}
+
+export type TransitionTrigger = 
+  | 'cards-dealt' 
+  | 'betting-complete' 
+  | 'showdown-required' 
+  | 'game-finished' 
+  | 'player-folded' 
+  | 'timeout' 
+  | 'manual';
+
+export interface PokerGameEvents {
+  onGameCreated: (gameState: GameState) => void;
+  onCardsDealt: (gameState: GameState) => void;
+  onActionRequired: (gameState: GameState, playerId: string, options: BettingOptions) => void;
+  onActionProcessed: (gameState: GameState, action: PlayerAction) => void;
+  onPhaseChanged: (gameState: GameState, transition: GameTransition) => void;
+  onPotAwarded: (gameState: GameState, winners: GameWinner[]) => void;
+  onGameFinished: (gameState: GameState, result: GameResult) => void;
+  onPlayerDisconnected: (gameState: GameState, playerId: string) => void;
+  onPlayerReconnected: (gameState: GameState, playerId: string) => void;
+}
+
+export interface ActionTimer {
+  playerId: string;
+  actionId: string;
+  startTime: number;
+  timeLimit: number;
+  timeBank: number;
+  warningTime: number;
+  onTimeout: () => void;
+  onWarning: () => void;
+}
+
+export interface RakeCalculation {
+  potSize: number;
+  rakePercent: number;
+  rakeCap: number;
+  rakeAmount: number;
+  netPot: number;
+  playersContributing: string[];
+}
+
+export interface Table {
+  id: string;
+  config: TableConfig;
+  players: Map<string, PlayerState>;
+  currentGame?: GameState;
+  gameHistory: HandHistory[];
+  waitingList: string[];
+  observerCount: number;
+  isActive: boolean;
+  lastActivity: number;
+  createdAt: number;
+  totalHands: number;
+  averagePotSize: number;
+  seatsOccupied: number;
+  nextGameStartTime?: number;
+  blindLevelStartTime?: number;
 }
