@@ -32,7 +32,7 @@ const generateGuestUser = (): AuthUser => ({
     level: 1,
     rank: 'bronze',
     permissions: [],
-    lastLogin: new Date(),
+    lastLogin: new Date(Date.now()), // Convert timestamp to Date object
     isVerified: false
 });
 

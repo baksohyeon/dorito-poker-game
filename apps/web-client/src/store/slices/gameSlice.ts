@@ -1,7 +1,8 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { GameState, PlayerState, PlayerAction, Card, GamePhase } from '@shared/types/game.types';
 
-interface GameSliceState extends GameState {
+interface GameSliceState extends Omit<GameState, 'players'> {
+    players: Record<string, PlayerState>; // Use object instead of Map
     isPlaying: boolean;
     myCards: Card[];
     myPosition: number | null;
@@ -25,7 +26,7 @@ const initialState: GameSliceState = {
     dealerPosition: 0,
     smallBlindPosition: 0,
     bigBlindPosition: 0,
-    players: new Map(),
+    players: {},
     blinds: {
         small: 0,
         big: 0,
@@ -93,17 +94,29 @@ const gameSlice = createSlice({
     initialState,
     reducers: {
         setCurrentGame: (state, action: PayloadAction<GameState>) => {
-            return {
-                ...state,
-                ...action.payload,
+            const gameState = action.payload;
+            // Convert Map to object for players
+            const players = gameState.players instanceof Map 
+                ? Object.fromEntries(gameState.players.entries())
+                : gameState.players;
+            
+            Object.assign(state, {
+                ...gameState,
+                players,
                 isPlaying: true,
-            };
+            });
         },
         updateGameState: (state, action: PayloadAction<Partial<GameState>>) => {
-            return {
-                ...state,
-                ...action.payload,
-            };
+            const updates = action.payload;
+            // Convert Map to object for players if present
+            if (updates.players) {
+                const players = updates.players instanceof Map 
+                    ? Object.fromEntries(updates.players.entries())
+                    : updates.players;
+                Object.assign(state, { ...updates, players });
+            } else {
+                Object.assign(state, updates);
+            }
         },
         setMyCards: (state, action: PayloadAction<Card[]>) => {
             state.myCards = action.payload;
@@ -139,9 +152,11 @@ const gameSlice = createSlice({
             state.dealAnimation = false;
         },
         updatePlayer: (state, action: PayloadAction<{ playerId: string; updates: Partial<PlayerState> }>) => {
-            if (state.players.has(action.payload.playerId)) {
-                const player = state.players.get(action.payload.playerId)!;
-                state.players.set(action.payload.playerId, { ...player, ...action.payload.updates });
+            if (state.players[action.payload.playerId]) {
+                state.players[action.payload.playerId] = { 
+                    ...state.players[action.payload.playerId], 
+                    ...action.payload.updates 
+                };
             }
         },
         leaveGame: () => {
@@ -165,17 +180,15 @@ const gameSlice = createSlice({
             state.tableId = action.payload.tableId;
             state.id = action.payload.sessionId;
         },
-        updateConnectionStatus: (state, action: PayloadAction<{ connected: boolean }>) => {
+        updateConnectionStatus: () => {
             // Handle connection status changes
         },
-        setActionTimer: (state, action: PayloadAction<{ playerId: string; timeRemaining: number }>) => {
-            const player = state.players.get(action.payload.playerId);
-            if (player) {
-                player.actionTimer = action.payload.timeRemaining;
-            }
+        setActionTimer: () => {
+            // Action timer is handled in the UI layer, not in player state
+            // This can be used to trigger UI updates for timer display
         },
         updatePlayerChips: (state, action: PayloadAction<{ playerId: string; chips: number; currentBet?: number }>) => {
-            const player = state.players.get(action.payload.playerId);
+            const player = state.players[action.payload.playerId];
             if (player) {
                 player.chips = action.payload.chips;
                 if (action.payload.currentBet !== undefined) {
@@ -206,8 +219,8 @@ const gameSlice = createSlice({
             state.handHistory.push(action.payload);
             
             // Update current player
-            const nextPlayerIndex = state.actionHistory.length % state.players.size;
-            const playerIds = Array.from(state.players.keys());
+            const playerIds = Object.keys(state.players);
+            const nextPlayerIndex = state.actionHistory.length % playerIds.length;
             state.currentPlayer = playerIds[nextPlayerIndex] || null;
             
             // Reset action state
@@ -218,7 +231,7 @@ const gameSlice = createSlice({
             state.potWinAnimation = true;
             // Update player profits based on results
             for (const winnerId of action.payload.winners) {
-                const winner = state.players.get(winnerId);
+                const winner = state.players[winnerId];
                 if (winner) {
                     winner.chips += action.payload.potDistribution / action.payload.winners.length;
                 }
@@ -240,13 +253,15 @@ const gameSlice = createSlice({
             state.currentPlayer = null;
             
             // Reset player states for new hand
-            for (const [playerId, player] of state.players) {
-                state.players.set(playerId, {
-                    ...player,
-                    currentBet: 0,
-                    hasActed: false,
-                    actionTimer: undefined
-                });
+            for (const playerId of Object.keys(state.players)) {
+                const player = state.players[playerId];
+                if (player) {
+                    state.players[playerId] = {
+                        ...player,
+                        currentBet: 0,
+                        hasActed: false
+                    };
+                }
             }
             
             state.handNumber += 1;

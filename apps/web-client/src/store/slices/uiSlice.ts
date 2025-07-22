@@ -40,7 +40,7 @@ const initialState: UIState = {
     soundEnabled: true,
     animationsEnabled: true,
     theme: 'dark',
-    isMobile: window.innerWidth < 768,
+    isMobile: typeof window !== 'undefined' ? window.innerWidth < 768 : false,
     connectionStatus: 'disconnected',
     aiPanelOpen: false,
     handHistoryOpen: false,

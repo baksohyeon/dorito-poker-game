@@ -1,73 +1,85 @@
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from './store';
 import { initializeSettings, setIsMobile } from './store/slices/uiSlice';
-import { socketService } from './services/socketService';
+import ErrorBoundary from './components/ErrorBoundary';
 
-// Pages
-import LandingPage from './pages/LandingPage';
-import SimpleLobbyPage from './pages/SimpleLobbyPage';
-import TablePage from './pages/TablePage';
-import TablesPage from './pages/TablesPage';
-import StatsPage from './pages/StatsPage';
-import LeaderboardPage from './pages/LeaderboardPage';
+// Lazy load components to prevent initial load issues
+const LandingPage = lazy(() => import('./pages/SimpleLandingPage').catch(() => import('./pages/LandingPage')));
+const SimpleLobbyPage = lazy(() => import('./pages/SimpleLobbyPage'));
+const TablePage = lazy(() => import('./pages/TablePage'));
+const TablesPage = lazy(() => import('./pages/TablesPage'));
+const StatsPage = lazy(() => import('./pages/StatsPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 
-// Components
-import Header from './components/layout/Header';
-import NotificationContainer from './components/ui/NotificationContainer';
-import Modal from './components/ui/Modal';
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-400 mx-auto mb-4"></div>
+      <p className="text-xl">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   const dispatch = useDispatch();
   const { theme } = useSelector((state: RootState) => state.ui);
 
   useEffect(() => {
-    // Initialize settings
-    dispatch(initializeSettings());
+    // Initialize settings safely
+    try {
+      dispatch(initializeSettings());
+    } catch (error) {
+      console.error('Failed to initialize settings:', error);
+    }
 
-    // Handle window resize
+    // Handle window resize safely
     const handleResize = () => {
-      dispatch(setIsMobile(window.innerWidth < 768));
+      try {
+        dispatch(setIsMobile(window.innerWidth < 768));
+      } catch (error) {
+        console.error('Failed to handle resize:', error);
+      }
     };
+
+    // Initial mobile check
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [dispatch]);
 
-  useEffect(() => {
-    // Connect to socket for guest access
-    socketService.setDispatch(dispatch);
-    socketService.connect();
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [dispatch]);
-
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
-      <div className="min-h-screen bg-poker-dark-900 text-white">
-        <Header />
-        
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/lobby" element={<SimpleLobbyPage />} />
-            <Route path="/tables" element={<TablesPage />} />
-            <Route path="/table/:tableId" element={<TablePage />} />
-            <Route path="/statistics" element={<StatsPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            
-            {/* Redirect to lobby by default */}
-            <Route path="*" element={<Navigate to="/lobby" replace />} />
-          </Routes>
-        </main>
-
-        <NotificationContainer />
-        <Modal />
+    <ErrorBoundary>
+      <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
+        <div className="min-h-screen bg-gray-900 text-white">
+          {/* Simple header */}
+          <header className="bg-gray-800 border-b border-gray-700 p-4">
+            <div className="max-w-7xl mx-auto">
+              <h1 className="text-2xl font-bold text-green-400">PokerLulu</h1>
+            </div>
+          </header>
+          
+          <main className="flex-1">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/lobby" element={<SimpleLobbyPage />} />
+                <Route path="/tables" element={<TablesPage />} />
+                <Route path="/table/:tableId" element={<TablePage />} />
+                <Route path="/statistics" element={<StatsPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                
+                {/* Redirect to home by default */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 

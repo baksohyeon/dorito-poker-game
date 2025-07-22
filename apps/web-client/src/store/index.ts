@@ -1,8 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { enableMapSet } from 'immer';
 import authSlice from './slices/authSlice';
 import gameSlice from './slices/gameSlice';
 import tableSlice from './slices/tableSlice';
 import uiSlice from './slices/uiSlice';
+
+// Enable Immer MapSet support
+enableMapSet();
 
 export const store = configureStore({
     reducer: {
@@ -15,7 +19,9 @@ export const store = configureStore({
         getDefaultMiddleware({
             serializableCheck: {
                 ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
-                ignoredPaths: ['register'],
+                ignoredPaths: [
+                    'register',
+                ],
             },
         }),
 });
